@@ -1,6 +1,6 @@
 # Security Architecture
 
-**Status:** Accepted baseline  
+**Status:** Working baseline  
 **Scope:** Linux-hosted, provider-independent SaaS platform built around DeepSeek Harness (DSH).
 
 ## 1. Product and deployment constraints
