@@ -21,6 +21,7 @@ deploy/profiles/saas-restricted/cordis.patch.yml
 必须在独立的 sdk-minimal bundle 之后应用。
 
 Overlay 会禁用：
+
 - terminal-bash 和 terminal-pwsh；
 - persistent-bash 和 persistent-pwsh；
 - tool-fs；
