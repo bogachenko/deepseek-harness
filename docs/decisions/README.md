@@ -24,3 +24,5 @@ This directory stores technical Architecture Decision Records (ADRs) for the bog
 - [ADR-002 — Workload identity and secret boundary](ADR-002-workload-identity-and-secret-boundary.md)
 - [ADR-003 — Credential Broker over Unix Domain Socket](ADR-003-credential-broker-unix-socket.md)
 - [ADR-004 — Ephemeral isolated code execution](ADR-004-ephemeral-code-execution-isolation.md)
+
+- [ADR-011 — Smallstep step-ca for VPS host certificates](ADR-011-smallstep-step-ca-for-host-certificates.md)
