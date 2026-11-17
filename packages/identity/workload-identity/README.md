@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The package issues short-lived Ed25519 workload tokens for tenant-scoped DSH runtimes. The Control Plane uses issueWorkloadToken, and Tool Gateway uses verifyWorkloadToken to authenticate each runtime. The library owns token format and claim validation, but not private-key storage, revocation, or resource-level authorization.
+The package issues short-lived Ed25519 workload tokens for tenant-scoped DSH runtimes and provides a fail-closed guard for the DSH tool execution pipeline. The Control Plane uses issueWorkloadToken, the Tool Runtime uses verifyWorkloadToken, and the root composition registers createWorkloadIdentityToolGuard with ctx.tools.guard(). The library owns token format, claim validation, and per-tool capability checks, but not private-key storage, revocation, or resource-level authorization.
 
 ## Table of Contents
 
