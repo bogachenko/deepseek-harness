@@ -1,5 +1,5 @@
 ---
-description: "Issue and verify short-lived Ed25519 workload identities for tenant-scoped DSH runtimes."
+description: "Ed25519 workload-token library for issuing and verifying short-lived tenant-scoped DSH runtime identities."
 kind: "package-library"
 ---
 
@@ -9,13 +9,13 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package issues and verifies short-lived Ed25519-signed identities for tenant-scoped agent runtimes. The Control Plane signs tokens with a private key; Tool Gateway verifies them with public keys. DSH Runtime only presents the short-lived bearer token to its intended private service audience. The private key must never be provisioned to an agent runtime.
+The package issues short-lived Ed25519 workload tokens for tenant-scoped DSH runtimes. The Control Plane uses issueWorkloadToken, and Tool Gateway uses verifyWorkloadToken to authenticate each runtime. The library owns token format and claim validation, but not private-key storage, revocation, or resource-level authorization.
 
 ## Table of Contents
 
 - [Use this package](#use-this-package)
-- [Token contract](#token-contract)
-- [API](#api)
+- [Understand the implementation](#understand-the-implementation)
+- [Further Exploration](#further-exploration)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 - [Dev Note](#dev-note)
@@ -23,28 +23,80 @@ This package issues and verifies short-lived Ed25519-signed identities for tenan
 -----
 
 <a id="use-this-package"></a>
-<a id="use-this-package"></a>
 ## Use this package
 
-The trusted Control Plane calls issueWorkloadToken after authenticating the platform request and resolving the tenant, agent, runtime, and granted capabilities from server-side state. It delivers the resulting bearer token only to the intended runtime or service audience. Tool Gateway calls verifyWorkloadToken with its trusted public-key set and exact issuer and audience. DSH Runtime only presents the bearer token to that private gateway endpoint.
+### When to use it
 
-Never derive tenant identity or capabilities from model-generated arguments. Never place the signing private key in DSH Runtime, a sandbox, a prompt, a tool result, or a log. Treat the token as a bearer credential and do not persist or disclose it unnecessarily.
+Use this library when the trusted Control Plane must issue a short-lived identity for one tenant, agent, and runtime, and Tool Gateway must verify that identity before dispatching a business operation. It is a plain Node module, not a Cordis plugin or an installable profile layer.
 
-<a id="token-contract"></a>
-## Token contract
+### Entry point
 
-The compact token has four dot-separated segments: dsh-wid-v1, key id, base64url payload, and Ed25519 signature. The fixed format version selects Ed25519; there is no token-controlled algorithm field. The key id is part of the signed input and selects one trusted public key, allowing old verification keys to remain available during rotation.
+The complete example below creates an ephemeral key pair for a local smoke test. In production, keep the private key in the Control Plane and provision only the public key to Tool Gateway.
 
-The signed payload contains the version, issuer, audience, tenant id, agent id, runtime id, sorted capabilities, unique token id, issuance time, and expiration time. Unknown claims, duplicate or unsorted capabilities, non-canonical JSON, malformed base64url, and invalid identifiers are rejected. A token can carry at most 64 capabilities.
+```ts
+import { generateKeyPairSync } from 'node:crypto'
+import { issueWorkloadToken, verifyWorkloadToken } from '@deepseek-ai/dsh-workload-identity'
 
-Issuance defaults to a 300-second lifetime and cannot exceed that limit. Verification requires an exact issuer and audience match and allows at most 60 seconds of configured clock tolerance; the default is 30 seconds. Successful verification returns a frozen identity and frozen capability list.
+const { privateKey, publicKey } = generateKeyPairSync('ed25519')
+const identity = {
+  tenantId: 'tenant-a',
+  agentId: 'agent-a',
+  runtimeId: 'runtime-a',
+  capabilities: ['crm.read'],
+}
+const token = issueWorkloadToken(identity, {
+  privateKey,
+  keyId: 'control-2026-01',
+  issuer: 'https://control.example',
+  audience: 'dsh-tool-gateway',
+})
+const verified = verifyWorkloadToken(token, {
+  publicKeys: new Map([['control-2026-01', publicKey]]),
+  issuer: 'https://control.example',
+  audience: 'dsh-tool-gateway',
+})
+console.log(verified.tenantId)
+```
 
-<a id="api"></a>
-## API
+Successful verification returns frozen claims. Invalid tokens raise WORKLOAD_TOKEN_INVALID; invalid server key or verifier configuration raises WORKLOAD_TOKEN_CONFIGURATION_INVALID.
 
-issueWorkloadToken accepts a server-resolved WorkloadIdentity and signing options containing an Ed25519 private key, key id, issuer, audience, and optional lifetime. It returns a compact bearer token.
+-----
 
-verifyWorkloadToken accepts a token and verification options containing a map of trusted public keys, expected issuer, expected audience, and optional clock settings. It returns VerifiedWorkloadIdentity. Token-validation failures share WORKLOAD_TOKEN_INVALID; invalid server key or verifier configuration uses WORKLOAD_TOKEN_CONFIGURATION_INVALID.
+<a id="understand-the-implementation"></a>
+## Understand the implementation
+
+<details>
+<summary>Implementation internals — click to expand</summary>
+
+### Design boundaries
+
+The versioned envelope fixes Ed25519 rather than accepting an algorithm from the token. The key id is included in the signed input, so verification-key rotation can retain old public keys while new tokens use a new id. Payload parsing rejects unknown claims, duplicate or unsorted capabilities, non-canonical JSON, malformed identifiers, and lifetimes longer than 300 seconds.
+
+The issuer and verifier are deliberately separate by key material: only the issuer receives a private key, while the verifier accepts public keys only. A token is a bearer credential and remains usable until expiry; this package does not store or revoke tokens.
+
+### Source map
+
+| File | Role |
+|---|---|
+| [src/index.ts](src/index.ts) | Plain library API: Ed25519 token issue/verify, claim validation, key-id selection, and stable error codes. |
+| [tests/workload-identity.spec.ts](tests/workload-identity.spec.ts) | Exercises signatures, key rotation, issuer/audience, time bounds, capability validation, canonical payloads, and key separation. |
+
+</details>
+
+-----
+
+<a id="further-exploration"></a>
+## Further Exploration
+
+Read the architecture and threat model before wiring this library into a service.
+
+- [Identity group map](../README.md) — the sibling packages and identity-family scope.
+- [Security architecture](../../../docs/security/architecture.md) — the Control Plane, Runtime, Tool Gateway, and Execution Plane boundaries.
+- [Threat model](../../../docs/security/threat-model.md) — the workload-identity and cross-tenant threats this package helps address.
+- [Restricted DSH profile](../../../docs/security/restricted-profile.md) — the current model-facing capability restrictions.
+- [Node.js crypto API](https://nodejs.org/api/crypto.html) — Ed25519 key objects, signing, and verification primitives.
+
+-----
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -64,6 +116,11 @@ None; workload identity is verified outside model requests and does not alter pr
 - External key management — private-key storage, public-key distribution, key rotation cadence, and emergency key retirement belong to the Control Plane deployment and are not implemented by this library.
 
 <a id="dev-note"></a>
-## Dev Note
+### Dev Note
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
 
 None.
+
+</details>
