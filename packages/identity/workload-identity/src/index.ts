@@ -522,7 +522,12 @@ export function createWorkloadIdentityToolGuard(
   })
 
   return (execution) => {
-    const agentId = execution.agent?.id
+    let agentId: unknown
+    try {
+      agentId = execution.agent?.id
+    } catch {
+      return deny('WORKLOAD_POLICY_UNAVAILABLE')
+    }
     if (typeof agentId !== 'string' || !IDENTIFIER_PATTERN.test(agentId)) {
       return deny('WORKLOAD_IDENTITY_REQUIRED')
     }
@@ -533,17 +538,30 @@ export function createWorkloadIdentityToolGuard(
     } catch {
       return deny('WORKLOAD_POLICY_UNAVAILABLE')
     }
-    if (!isRecord(binding)
-      || typeof binding.tenantId !== 'string' || !IDENTIFIER_PATTERN.test(binding.tenantId)
-      || typeof binding.runtimeId !== 'string' || !IDENTIFIER_PATTERN.test(binding.runtimeId)
-      || !isVerifiedWorkloadIdentity(binding.identity)) {
+    if (binding === undefined || !isRecord(binding)) {
       return deny('WORKLOAD_IDENTITY_REQUIRED')
     }
 
-    const identity = binding.identity
+    let tenantId: unknown
+    let runtimeId: unknown
+    let identityValue: unknown
+    try {
+      tenantId = binding.tenantId
+      runtimeId = binding.runtimeId
+      identityValue = binding.identity
+    } catch {
+      return deny('WORKLOAD_POLICY_UNAVAILABLE')
+    }
+    if (typeof tenantId !== 'string' || !IDENTIFIER_PATTERN.test(tenantId)
+      || typeof runtimeId !== 'string' || !IDENTIFIER_PATTERN.test(runtimeId)
+      || !isVerifiedWorkloadIdentity(identityValue)) {
+      return deny('WORKLOAD_IDENTITY_REQUIRED')
+    }
+
+    const identity = identityValue
     if (identity.agentId !== agentId
-      || identity.tenantId !== binding.tenantId
-      || identity.runtimeId !== binding.runtimeId) {
+      || identity.tenantId !== tenantId
+      || identity.runtimeId !== runtimeId) {
       return deny('WORKLOAD_IDENTITY_BINDING_INVALID')
     }
     if (identity.iss !== options.issuer) return deny('WORKLOAD_IDENTITY_ISSUER_INVALID')
@@ -560,9 +578,19 @@ export function createWorkloadIdentityToolGuard(
     }
     if (identity.exp <= nowSeconds) return deny('WORKLOAD_IDENTITY_EXPIRED')
 
+    let toolName: unknown
+    try {
+      toolName = execution.name
+    } catch {
+      return deny('WORKLOAD_POLICY_UNAVAILABLE')
+    }
+    if (typeof toolName !== 'string' || toolName.length === 0) {
+      return deny('WORKLOAD_CAPABILITY_UNMAPPED')
+    }
+
     let requiredCapability: unknown
     try {
-      requiredCapability = options.requiredCapability(execution.name)
+      requiredCapability = options.requiredCapability(toolName)
     } catch {
       return deny('WORKLOAD_POLICY_UNAVAILABLE')
     }
