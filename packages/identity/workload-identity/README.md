@@ -111,7 +111,7 @@ None; workload identity is verified outside model requests and does not alter pr
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- No revocation list — a stolen bearer token can be used until its short expiration time; the platform must rotate runtime tokens and keep their lifetime bounded.
+- No revocation or replay store — a stolen bearer token can be reused until expiration; jti is an identifier, not a single-use guarantee. The platform must rotate runtime tokens and keep their lifetime bounded.
 - No resource authorization — signed capabilities establish the runtime's granted capability set, but Tool Gateway must still authorize each operation and each tenant-owned resource.
 - External key management — private-key storage, public-key distribution, key rotation cadence, and emergency key retirement belong to the Control Plane deployment and are not implemented by this library.
 
