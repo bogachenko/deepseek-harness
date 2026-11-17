@@ -33,7 +33,6 @@ Use anonymous-user-id for installation-level correlation; use workload-identity 
 - [Session telemetry subsystem](../../docs/subsystems/session-telemetry.md) — the telemetry feature that carries the anonymous installation id.
 - [dsh-llm-deepseek](../llm/llm-deepseek/README.md) — the DeepSeek provider that carries the anonymous installation id on requests.
 - [dsh-command-feedback](../feedback/command-feedback/README.md) — the feedback command that names the anonymous installation in its acknowledgement.
-- [dsh-workload-identity](workload-identity/README.md) — signed runtime identity and verification contract.
 
 <a id="dev-note"></a>
 ## Dev Note
