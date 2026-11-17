@@ -20,6 +20,8 @@ identity 组包含两种彼此独立的身份机制。anonymous-user-id 为每�
 <a id="packages"></a>
 ## 包
 
+安装级关联使用 anonymous-user-id；可信服务需要认证租户隔离 Runtime 时使用 workload-identity。
+
 | 包 | 职责 |
 |---|---|
 | [anonymous-user-id](anonymous-user-id/README.zh.md) | 为每个 harness home 提供稳定的匿名关联 id，用于遥测、反馈和 DeepSeek 提供方记录。 |
