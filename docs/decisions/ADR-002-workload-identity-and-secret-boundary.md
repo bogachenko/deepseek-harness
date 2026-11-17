@@ -23,6 +23,10 @@ Environment-variable filtering does not protect secrets stored in files. The sec
 9. Each Runtime has a distinct identity when accessing Credential Broker.
 10. gVisor execution jobs receive no access to broker sockets, workload tokens, or Control Plane secrets.
 
+## Implementation detail still to confirm
+
+The project history contains a proposal to run each tenant Runtime under a distinct Linux UID and provide a Runtime-specific Unix socket. The user explicitly approved one tenant-scoped Runtime per customer and per-Runtime identity at the Broker boundary, but the exact OS mechanism (dedicated Linux UID versus an equivalent OS-enforced isolation mechanism) was not separately confirmed. Treat the UID choice as **Proposed**, not as an independently approved product decision, until confirmed.
+
 ## Consequences
 
 - Credential access is mediated by platform services, never by model-visible files or environment variables.
