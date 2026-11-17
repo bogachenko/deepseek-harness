@@ -62,7 +62,7 @@ function createGuard(
   resolveBinding: WorkloadIdentityToolGuardOptions['resolveBinding'] = () => binding(),
   requiredCapability: WorkloadIdentityToolGuardOptions['requiredCapability'] = name =>
     name === 'crm.read' ? 'crm.read' : undefined,
-  nowSeconds: WorkloadIdentityToolGuardOptions['nowSeconds'] = () => NOW,
+  nowSeconds: () => number = () => NOW,
 ) {
   return createWorkloadIdentityToolGuard({
     issuer: ISSUER,
@@ -75,9 +75,9 @@ function createGuard(
 
 function denied(
   guard: ReturnType<typeof createGuard>,
+  code: string,
   agentId = claims.agentId,
   toolName = 'crm.read',
-  code: string,
 ): void {
   expect(guard({ name: toolName, agent: { id: agentId } })).toMatchObject({
     reason: 'workload identity is not authorized to execute this tool',
@@ -100,7 +100,7 @@ describe('workload identity tool guard', () => {
     expect(guard({ name: 'crm.read' })).toMatchObject({
       info: { code: 'WORKLOAD_IDENTITY_REQUIRED' },
     })
-    denied(guard, claims.agentId, 'crm.read', 'WORKLOAD_IDENTITY_REQUIRED')
+    denied(guard, 'WORKLOAD_IDENTITY_REQUIRED')
   })
 
   it('does not accept a structurally copied identity as verified', () => {
@@ -109,49 +109,49 @@ describe('workload identity tool guard', () => {
     expect(isVerifiedWorkloadIdentity(copied)).toBe(false)
 
     const guard = createGuard(() => binding(copied as typeof identity))
-    denied(guard, claims.agentId, 'crm.read', 'WORKLOAD_IDENTITY_REQUIRED')
+    denied(guard, 'WORKLOAD_IDENTITY_REQUIRED')
   })
 
   it('rejects a tenant, Agent, or runtime binding mismatch', () => {
     const identity = verifiedIdentity()
     denied(createGuard(() => binding(identity, { tenantId: 'tenant_other' })),
-      claims.agentId, 'crm.read', 'WORKLOAD_IDENTITY_BINDING_INVALID')
+      'WORKLOAD_IDENTITY_BINDING_INVALID')
     denied(createGuard(() => binding(identity, { runtimeId: 'runtime_other' })),
-      claims.agentId, 'crm.read', 'WORKLOAD_IDENTITY_BINDING_INVALID')
-    denied(createGuard(() => binding(identity)), 'agent_other',
-      'crm.read', 'WORKLOAD_IDENTITY_REQUIRED')
+      'WORKLOAD_IDENTITY_BINDING_INVALID')
+    denied(createGuard(() => binding(identity)), 'WORKLOAD_IDENTITY_BINDING_INVALID',
+      'agent_other')
   })
 
   it('rejects identities issued for another issuer or audience', () => {
     const wrongIssuer = verifiedIdentity(claims, 'https://other-control.example', AUDIENCE)
     const wrongAudience = verifiedIdentity(claims, ISSUER, 'another-service')
     denied(createGuard(() => binding(wrongIssuer)),
-      claims.agentId, 'crm.read', 'WORKLOAD_IDENTITY_ISSUER_INVALID')
+      'WORKLOAD_IDENTITY_ISSUER_INVALID')
     denied(createGuard(() => binding(wrongAudience)),
-      claims.agentId, 'crm.read', 'WORKLOAD_IDENTITY_AUDIENCE_INVALID')
+      'WORKLOAD_IDENTITY_AUDIENCE_INVALID')
   })
 
   it('rejects an identity as soon as its expiration time is reached', () => {
     const identity = verifiedIdentity()
     denied(createGuard(() => binding(identity), undefined, () => NOW + 300),
-      claims.agentId, 'crm.read', 'WORKLOAD_IDENTITY_EXPIRED')
+      'WORKLOAD_IDENTITY_EXPIRED')
   })
 
   it('requires an explicit tool-to-capability mapping and the granted capability', () => {
     const identity = verifiedIdentity()
     denied(createGuard(() => binding(identity), () => undefined),
-      claims.agentId, 'crm.write', 'WORKLOAD_CAPABILITY_UNMAPPED')
+      'WORKLOAD_CAPABILITY_UNMAPPED', claims.agentId, 'crm.write')
     denied(createGuard(() => binding(identity), () => 'crm.write'),
-      claims.agentId, 'crm.write', 'WORKLOAD_CAPABILITY_DENIED')
+      'WORKLOAD_CAPABILITY_DENIED', claims.agentId, 'crm.write')
   })
 
   it('fails closed when the binding, capability policy, or clock fails', () => {
     const identity = verifiedIdentity()
     denied(createGuard(() => { throw new Error('database unavailable') }),
-      claims.agentId, 'crm.read', 'WORKLOAD_POLICY_UNAVAILABLE')
+      'WORKLOAD_POLICY_UNAVAILABLE')
     denied(createGuard(() => binding(identity), () => { throw new Error('policy unavailable') }),
-      claims.agentId, 'crm.read', 'WORKLOAD_POLICY_UNAVAILABLE')
+      'WORKLOAD_POLICY_UNAVAILABLE')
     denied(createGuard(() => binding(identity), () => 'crm.read', () => Number.NaN),
-      claims.agentId, 'crm.read', 'WORKLOAD_POLICY_UNAVAILABLE')
+      'WORKLOAD_POLICY_UNAVAILABLE')
   })
 })
