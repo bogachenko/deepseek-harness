@@ -343,7 +343,9 @@ export function issueWorkloadToken(
   const payloadSegment = encodeBase64Url(Buffer.from(JSON.stringify(payload), 'utf8'))
   const signingInput = TOKEN_PREFIX + '.' + options.keyId + '.' + payloadSegment
   const signature = signBytes(null, Buffer.from(signingInput, 'utf8'), loadPrivateKey(options.privateKey))
-  return signingInput + '.' + encodeBase64Url(signature)
+  const token = signingInput + '.' + encodeBase64Url(signature)
+  if (Buffer.byteLength(token, 'utf8') > MAX_TOKEN_BYTES) throw invalidConfiguration()
+  return token
 }
 
 /**
