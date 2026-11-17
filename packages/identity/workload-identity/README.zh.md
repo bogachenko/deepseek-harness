@@ -111,7 +111,7 @@ console.log(verified.tenantId)
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 没有撤销列表——被盗用的 bearer token 在短暂过期前仍可使用；平台必须轮换 runtime token 并限制其有效期。
+- 没有撤销或重放存储——被盗用的 bearer token 在过期前可以重复使用；jti 只是标识符，不保证令牌只能使用一次。平台必须轮换 runtime token 并限制其有效期。
 - 不负责资源授权——签名 capabilities 只表明 runtime 获得的能力集合；Tool Gateway 仍必须逐项操作、逐个租户资源执行授权。
 - 密钥管理在外部——私钥存储、公钥分发、密钥轮换周期和紧急密钥退役由 Control Plane 部署负责，本库不实现这些功能。
 
