@@ -17,6 +17,8 @@ The identity group contains two separate identity mechanisms. anonymous-user-id 
 - [Related documentation](#related-documentation)
 - [Dev Note](#dev-note)
 
+-----
+
 <a id="packages"></a>
 ## Packages
 
