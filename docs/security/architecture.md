@@ -1,5 +1,7 @@
 # Security Architecture
 
+English | [中文](architecture.zh.md)
+
 **Status:** Working baseline  
 **Scope:** Linux-hosted, provider-independent SaaS platform built around DeepSeek Harness (DSH).
 
@@ -46,6 +48,8 @@
 ```
 
 The Control Plane owns tenant identity, authentication, lifecycle management, policy decisions, and audit metadata. DSH runs the agent loop and coordinates model/tool interactions. The Execution Plane runs untrusted code outside the DSH process.
+
+Workload-token issuance and verification are implemented by [dsh-workload-identity](../../packages/identity/workload-identity/README.md). Only the Control Plane receives the private signing key; DSH Runtime and Tool Gateway receive public verification keys.
 
 ## 3. Trust boundaries
 
