@@ -44,14 +44,12 @@ export class WorkloadIdentityError extends Error {
 
   /**
    * @param code - Stable failure code.
-   * @param cause - Optional underlying configuration error.
    */
-  constructor(code: WorkloadIdentityErrorCode, cause?: unknown) {
+  constructor(code: WorkloadIdentityErrorCode) {
     super(
       code === 'WORKLOAD_TOKEN_INVALID'
         ? 'Invalid workload identity token'
         : 'Invalid workload identity configuration',
-      cause === undefined ? undefined : { cause },
     )
     this.name = 'WorkloadIdentityError'
     this.code = code
@@ -135,8 +133,8 @@ function invalidToken(): WorkloadIdentityError {
   return new WorkloadIdentityError('WORKLOAD_TOKEN_INVALID')
 }
 
-function invalidConfiguration(cause?: unknown): WorkloadIdentityError {
-  return new WorkloadIdentityError('WORKLOAD_TOKEN_CONFIGURATION_INVALID', cause)
+function invalidConfiguration(): WorkloadIdentityError {
+  return new WorkloadIdentityError('WORKLOAD_TOKEN_CONFIGURATION_INVALID')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -183,7 +181,7 @@ function loadPrivateKey(value: string | KeyObject): KeyObject {
     return key
   } catch (error) {
     if (error instanceof WorkloadIdentityError) throw error
-    throw invalidConfiguration(error)
+    throw invalidConfiguration()
   }
 }
 
