@@ -23,26 +23,30 @@ kind: "package-library"
 -----
 
 <a id="use-this-package"></a>
+<a id="use-this-package"></a>
 ## 使用本包
 
 可信的 Control Plane 在完成平台请求认证，并从服务端状态解析出 tenant、agent、runtime 和已授予的 capabilities 后，调用 issueWorkloadToken。它只会将生成的 bearer token 交付给预期的 runtime 或服务 audience。DSH Runtime 或 Tool Gateway 使用可信公钥集合以及精确的 issuer 和 audience 调用 verifyWorkloadToken。
 
 绝不能从模型生成的参数推导 tenant 身份或 capabilities。绝不能把签名私钥放入 DSH Runtime、沙箱、提示词、工具结果或日志。应将令牌视为 bearer 凭据，不要不必要地持久化或披露。
 
+<a id="token-contract"></a>
 ## 令牌约定
 
-紧凑令牌采用固定格式：dsh-wid-v1、key id、base64url payload 和 Ed25519 签名。固定格式版本选择 Ed25519；令牌中不存在可由令牌控制的算法字段。key id 属于签名输入，并用于选择可信公钥，因此在轮换期间可以继续保留旧验证密钥。
+紧凑令牌采用四个以点分隔的片段：dsh-wid-v1、key id、base64url payload 和 Ed25519 签名。固定格式版本选择 Ed25519；令牌中不存在可由令牌控制的算法字段。key id 属于签名输入，并用于选择可信公钥，因此在轮换期间可以继续保留旧验证密钥。
 
 签名 payload 包含版本、issuer、audience、tenant id、agent id、runtime id、排序后的 capabilities、唯一令牌 id、签发时间和过期时间。未知 claims、重复或未排序的 capabilities、非规范 JSON、格式错误的 base64url 以及无效标识符都会被拒绝。一个令牌最多携带 64 个 capabilities。
 
 签发默认有效期为 300 秒，且不能超过该上限。验证要求 issuer 和 audience 精确匹配，并允许最多 60 秒的时钟偏差；默认值为 30 秒。验证成功后返回被冻结的身份对象和 capabilities 列表。
 
+<a id="api"></a>
 ## API
 
 issueWorkloadToken 接收由服务端解析的 WorkloadIdentity，以及包含 Ed25519 私钥、key id、issuer、audience 和可选有效期的签发选项，并返回紧凑 bearer token。
 
 verifyWorkloadToken 接收令牌和验证选项；验证选项包含可信公钥映射、预期 issuer、预期 audience 以及可选时钟设置。它返回 VerifiedWorkloadIdentity。所有令牌验证失败统一使用 WORKLOAD_TOKEN_INVALID；无效的服务端密钥或验证器配置使用 WORKLOAD_TOKEN_CONFIGURATION_INVALID。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 无；本包签发和验证模型不可见的工作负载凭据，不注册任何面向模型的内容。
