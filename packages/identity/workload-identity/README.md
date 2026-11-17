@@ -70,7 +70,7 @@ Successful verification returns frozen claims. Invalid tokens raise WORKLOAD_TOK
 
 ### Design boundaries
 
-The versioned envelope fixes Ed25519 rather than accepting an algorithm from the token. The key id is included in the signed input, so verification-key rotation can retain old public keys while new tokens use a new id. Payload parsing rejects unknown claims, duplicate or unsorted capabilities, non-canonical JSON, malformed identifiers, and lifetimes longer than 300 seconds.
+The versioned envelope fixes Ed25519 rather than accepting an algorithm from the token. The key id is included in the signed input, so verification-key rotation can retain old public keys while new tokens use a new id. Payload parsing rejects unknown claims, duplicate or unsorted capabilities, non-canonical JSON, malformed identifiers, and lifetimes longer than 300 seconds. The complete compact token is limited to 8 KiB and can carry at most 64 capabilities.
 
 The issuer and verifier are deliberately separate by key material: only the issuer receives a private key, while the verifier accepts public keys only. A token is a bearer credential and remains usable until expiry; this package does not store or revoke tokens.
 
