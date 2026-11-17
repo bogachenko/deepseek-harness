@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The package issues short-lived Ed25519 workload tokens for tenant-scoped DSH runtimes and provides a fail-closed guard for the DSH tool execution pipeline. The Control Plane uses issueWorkloadToken, the Tool Runtime uses verifyWorkloadToken, and the root composition registers createWorkloadIdentityToolGuard with ctx.tools.guard(). The library owns token format, claim validation, and per-tool capability checks, but not private-key storage, revocation, or resource-level authorization.
+The package issues short-lived Ed25519 workload tokens for tenant-scoped DSH runtimes. The Control Plane uses issueWorkloadToken, and Tool Gateway uses verifyWorkloadToken to authenticate each runtime. The library owns token format and claim validation, but not private-key storage, revocation, or resource-level authorization.
 
 ## Table of Contents
 
@@ -60,25 +60,6 @@ console.log(verified.tenantId)
 
 Successful verification returns frozen claims. Invalid tokens raise WORKLOAD_TOKEN_INVALID; invalid server key or verifier configuration raises WORKLOAD_TOKEN_CONFIGURATION_INVALID.
 
-### Tool execution authorization
-
-The package also exports createWorkloadIdentityToolGuard. Register its returned function with the root ctx.tools.guard() so the existing DSH tool pipeline checks every root and nested dispatch after extensible pre-execute hooks and before the tool body.
-
-```ts
-import { createWorkloadIdentityToolGuard } from '@deepseek-ai/dsh-workload-identity'
-
-ctx.tools.guard(createWorkloadIdentityToolGuard({
-  issuer: 'https://control.example',
-  audience: 'dsh-tool-gateway',
-  resolveBinding: agentId => identityStore.findLiveBinding(agentId),
-  requiredCapability: toolName => toolPolicy.capabilityForTool(toolName),
-}))
-```
-
-identityStore.findLiveBinding must return the verified identity plus tenant and active-runtime ids from authoritative server-side records. toolPolicy.capabilityForTool must map each executable tool name to one required capability; an unmapped tool is denied. Do not derive either value from model arguments or user-controlled request fields. The guard checks tenant, agent, runtime, issuer, audience, expiry, and capability on every dispatch. It denies calls without an Agent.
-
-The guard is a plain function, not a Cordis plugin. The application owns the identity store, the capability map, and registration lifetime.
-
 -----
 
 <a id="understand-the-implementation"></a>
@@ -97,9 +78,8 @@ The issuer and verifier are deliberately separate by key material: only the issu
 
 | File | Role |
 |---|---|
-| [src/index.ts](src/index.ts) | Plain library API: Ed25519 token issue/verify, verified-claim provenance, tool execution guard, claim validation, and stable error codes. |
+| [src/index.ts](src/index.ts) | Plain library API: Ed25519 token issue/verify, claim validation, key-id selection, and stable error codes. |
 | [tests/workload-identity.spec.ts](tests/workload-identity.spec.ts) | Exercises signatures, key rotation, issuer/audience, time bounds, capability validation, canonical payloads, and key separation. |
-| [tests/tool-guard.spec.ts](tests/tool-guard.spec.ts) | Exercises fail-closed Agent, tenant, runtime, issuer, audience, expiry, and tool-capability authorization. |
 
 </details>
 
@@ -132,7 +112,7 @@ None; workload identity is verified outside model requests and does not alter pr
 <a id="known-limitations-and-deferred-work"></a>
 
 - No revocation or replay store — a stolen bearer token can be reused until expiration; jti is an identifier, not a single-use guarantee. The platform must rotate runtime tokens and keep their lifetime bounded.
-- No resource-level authorization — the guard checks whether a runtime may call a tool, not whether it may access a particular tenant-owned record. Each business tool must still enforce tenant ownership and resource-level policy.
+- No resource authorization — signed capabilities establish the runtime's granted capability set, but Tool Gateway must still authorize each operation and each tenant-owned resource.
 - External key management — private-key storage, public-key distribution, key rotation cadence, and emergency key retirement belong to the Control Plane deployment and are not implemented by this library.
 
 <a id="dev-note"></a>
