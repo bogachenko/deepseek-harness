@@ -1,5 +1,7 @@
 # Threat Model
 
+English | [中文](threat-model.zh.md)
+
 **Status:** Initial baseline  
 **Scope:** Multi-tenant SaaS using DSH on Linux hosts.
 
@@ -62,8 +64,8 @@ Trust boundaries:
 **Scenario:** A model changes a tenant identifier in a tool argument, or a compromised runtime requests another tenant's object.
 
 **Required controls:**
-- derive tenant identity from authenticated workload context;
-- never authorize based only on a tenant ID supplied in tool arguments;
+- verify the workload-token signature, issuer, audience, and expiration at the Tool Gateway;
+- derive tenant identity from verified claims, never from request arguments;
 - enforce tenant filters in the service and data-access layers;
 - test direct-object-reference and confused-deputy cases.
 
@@ -73,6 +75,7 @@ Trust boundaries:
 
 **Required controls:**
 - no long-lived integration secrets in DSH files or environment;
+- keep the workload-token signing private key in the Control Plane; runtime and gateway processes receive public keys only;
 - no host home-directory mounts;
 - Credential Broker keeps secrets server-side;
 - tool operations use credentials internally and return only authorized results;
