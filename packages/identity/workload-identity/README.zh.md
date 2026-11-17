@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-本包为按租户隔离的 Agent Runtime 签发并验证短时有效的 Ed25519 签名身份。Control Plane 使用私钥签发令牌；DSH Runtime 和 Tool Gateway 服务使用公钥验证令牌。验证方不需要私钥，且绝不能向 Agent Runtime 配置私钥。
+本包为按租户隔离的 Agent Runtime 签发并验证短时有效的 Ed25519 签名身份。Control Plane 使用私钥签发令牌；Tool Gateway 使用公钥验证令牌。DSH Runtime 只会向预期的私有服务 audience 出示短时有效的 bearer token。绝不能向 Agent Runtime 配置签名私钥。
 
 ## 目录
 
@@ -26,7 +26,7 @@ kind: "package-library"
 <a id="use-this-package"></a>
 ## 使用本包
 
-可信的 Control Plane 在完成平台请求认证，并从服务端状态解析出 tenant、agent、runtime 和已授予的 capabilities 后，调用 issueWorkloadToken。它只会将生成的 bearer token 交付给预期的 runtime 或服务 audience。DSH Runtime 或 Tool Gateway 使用可信公钥集合以及精确的 issuer 和 audience 调用 verifyWorkloadToken。
+可信的 Control Plane 在完成平台请求认证，并从服务端状态解析出 tenant、agent、runtime 和已授予的 capabilities 后，调用 issueWorkloadToken。它只会将生成的 bearer token 交付给预期的 runtime 或服务 audience。Tool Gateway 使用可信公钥集合以及精确的 issuer 和 audience 调用 verifyWorkloadToken。DSH Runtime 只向私有 Gateway 端点出示 bearer token。
 
 绝不能从模型生成的参数推导 tenant 身份或 capabilities。绝不能把签名私钥放入 DSH Runtime、沙箱、提示词、工具结果或日志。应将令牌视为 bearer 凭据，不要不必要地持久化或披露。
 
