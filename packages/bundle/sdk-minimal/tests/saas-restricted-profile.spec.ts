@@ -54,6 +54,22 @@ describe('SaaS Restricted profile overlay', () => {
     expect(effective.get('tool-executor-native')?.disabled).not.toBe(true)
   })
 
+  it('inherits no PTC, Web, or plugin-management execution path from sdk-minimal', () => {
+    const base = rowsFromBase()
+    for (const id of [
+      'ptc-runtime',
+      'workflow-ptc',
+      'tool-workflow',
+      'tool-executor-ptc',
+      'tool-web',
+      'web-fetch-http',
+      'plugin-manager',
+      'tool-plugin-manager',
+    ]) {
+      expect(base.has(id), `${id} must not exist in the standalone base`).toBe(false)
+    }
+  })
+
   it('contains only the reviewed overlay rows', () => {
     const overlay = parseEntryYaml(readFileSync(overlayPath, 'utf8')) as Row[]
     expect(overlay.map(row => row.id)).toEqual([
