@@ -101,7 +101,7 @@ console.log(verified.tenantId)
 <a id="model-experience"></a>
 ## 模型体验
 
-None, as this package signs and verifies model-hidden workload credentials and registers no model-facing content.
+无；本包只签发和验证模型不可见的工作负载凭据，不注册面向模型的内容。
 
 #### KV Cache effect
 
