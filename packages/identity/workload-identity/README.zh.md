@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-本包为租户隔离的 DSH Runtime 签发短时有效的 Ed25519 工作负载令牌。Control Plane 使用 issueWorkloadToken，Tool Gateway 使用 verifyWorkloadToken 对每个 Runtime 进行认证。该库负责令牌格式和 claims 验证，但不负责私钥存储、令牌撤销或资源级授权。
+本包为租户隔离的 DSH Runtime 签发短时有效的 Ed25519 工作负载令牌，并为 DSH 工具执行流水线提供 fail-closed guard。Control Plane 使用 issueWorkloadToken，Tool Runtime 使用 verifyWorkloadToken，根 composition 将 createWorkloadIdentityToolGuard 注册到 ctx.tools.guard()。该库负责令牌格式、claims 验证和逐工具 capability 检查，但不负责私钥存储、令牌撤销或资源级授权。
 
 ## 目录
 
