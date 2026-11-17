@@ -200,7 +200,7 @@ function loadPublicKey(value: string | KeyObject): KeyObject {
     return key
   } catch (error) {
     if (error instanceof WorkloadIdentityError) throw error
-    throw invalidConfiguration(error)
+    throw invalidConfiguration()
   }
 }
 
