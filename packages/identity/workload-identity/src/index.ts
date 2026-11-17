@@ -164,7 +164,9 @@ function assertKeyId(value: unknown): asserts value is string {
 }
 
 function assertNowSeconds(value: unknown): asserts value is number {
-  if (!Number.isSafeInteger(value) || (value as number) < 0) throw invalidConfiguration()
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+    throw invalidConfiguration()
+  }
 }
 
 function assertExactKeys(value: Record<string, unknown>, expected: readonly string[]): void {
@@ -279,8 +281,9 @@ function parsePayload(value: unknown): TokenPayload {
     previous = capability
   }
   if (typeof value.jti !== 'string' || !UUID_V4_PATTERN.test(value.jti)) throw invalidToken()
-  if (!Number.isSafeInteger(value.iat) || (value.iat as number) < 0
-    || !Number.isSafeInteger(value.exp) || (value.exp as number) <= (value.iat as number)) {
+  if (typeof value.iat !== 'number' || typeof value.exp !== 'number'
+    || !Number.isSafeInteger(value.iat) || value.iat < 0
+    || !Number.isSafeInteger(value.exp) || value.exp <= value.iat) {
     throw invalidToken()
   }
   return {
@@ -292,8 +295,8 @@ function parsePayload(value: unknown): TokenPayload {
     runtimeId: value.runtimeId,
     capabilities: Object.freeze(capabilities),
     jti: value.jti,
-    iat: value.iat as number,
-    exp: value.exp as number,
+    iat: value.iat,
+    exp: value.exp,
   }
 }
 
