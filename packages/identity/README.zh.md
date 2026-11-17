@@ -33,7 +33,6 @@ identity 组包含两种彼此独立的身份机制。anonymous-user-id 为每�
 - [会话遥测子系统](../../docs/subsystems/session-telemetry.zh.md)——在遥测中携带匿名安装 id 的功能。
 - [dsh-llm-deepseek](../llm/llm-deepseek/README.zh.md)——在请求中携带匿名安装 id 的 DeepSeek 提供方。
 - [dsh-command-feedback](../feedback/command-feedback/README.zh.md)——在确认文本中点名该匿名安装的反馈命令。
-- [dsh-workload-identity](workload-identity/README.zh.md)——签名 runtime 身份及验证约定。
 
 <a id="dev-note"></a>
 ## 开发备注
