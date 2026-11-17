@@ -1,6 +1,6 @@
 # ADR-010: Model Gateway API, provider adapters, and Runtime authentication
 
-- **Status:** Proposed for product-owner approval
+- **Status:** Approved by product owner
 - **Date:** 2026-11-17
 - **Related product decision:** PD-027
 - **Related ADRs:** ADR-002, ADR-003, ADR-008, ADR-009
@@ -10,7 +10,7 @@
 
 PD-027 and ADR-009 approve a provider-independent Model Gateway as the production SaaS model egress boundary. The implementation needs a stable Runtime API, a provider adapter boundary, and service-specific workload authentication. The existing DSH LLM package already defines canonical request and streaming types in `packages/llm/llm/src/types.ts`.
 
-## Proposed decision
+## Decision
 
 1. Runtime-facing API preserves DSH `GenerateOptions` and `StreamChunk` semantics rather than introducing a parallel chat abstraction.
 2. Runtime calls the Gateway over HTTPS using a short-lived Ed25519 workload token with exact audience `dsh-model-gateway` and required capability `model:invoke`.
