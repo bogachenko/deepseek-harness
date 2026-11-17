@@ -1,5 +1,7 @@
 # SaaS Restricted DSH profile
 
+English | [中文](restricted-profile.zh.md)
+
 **Status:** Initial capability-restricted profile  
 **Base:** `@deepseek-ai/dsh-sdk-minimal`  
 **Target:** Linux server deployments
@@ -62,7 +64,7 @@ This profile is not, by itself, a production security boundary.
 
 ## Next implementation
 
-1. Add a minimal platform-owned native tool that calls the Tool Gateway using a short-lived workload identity.
+1. Add a platform-owned native tool that calls the Tool Gateway using a short-lived token issued by the Workload Identity package.
 2. Enforce tenant and agent identity server-side; never accept them from model-supplied tool arguments.
 3. Move model-provider credentials behind a Model Gateway.
 4. Add cross-tenant and prompt-injection regression tests.
