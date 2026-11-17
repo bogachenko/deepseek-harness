@@ -1,6 +1,6 @@
 # Model Gateway API and Provider Adapter Contract
 
-- **Status:** Proposed for product-owner approval
+- **Status:** Approved by product owner
 - **Date:** 2026-11-17
 - **Related decision:** PD-027
 - **Related ADR:** ADR-009
