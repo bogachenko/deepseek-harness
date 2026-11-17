@@ -1,6 +1,6 @@
 # ADR-007: Separate Linux identity for DSH Runtime and Agent Process
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-008 (2026-11-17)
 - **Date:** 2026-11-17
 - **Related product decisions:** PD-022, PD-023, PD-024, PD-025
 - **Related ADRs:** ADR-002, ADR-003, ADR-005, ADR-006
@@ -37,3 +37,8 @@ This ADR records the accepted identity allocation and security boundary. It does
 ## Open implementation detail
 
 The use of systemd socket activation/socket units as the provisioning mechanism remains a candidate implementation, not a separately approved product decision. Verify compatibility with per-Runtime socket ownership and the Broker activation model before adopting it.
+
+
+## Supersession note
+
+The product owner selected the simpler in-process DSH Agent model. DSH Agent Loop remains inside DSH Runtime; no separate Agent Worker, Agent UID, or Agent↔Runtime IPC is introduced. The requirements in this ADR for a separate Agent UID and process boundary are superseded by ADR-008. Runtime UID separation between tenants remains in force under PD-022.
