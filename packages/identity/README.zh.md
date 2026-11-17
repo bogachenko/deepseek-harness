@@ -17,6 +17,8 @@ identity 组包含两种彼此独立的身份机制。anonymous-user-id 为每�
 - [相关文档](#related-documentation)
 - [开发备注](#dev-note)
 
+-----
+
 <a id="packages"></a>
 ## 包
 
