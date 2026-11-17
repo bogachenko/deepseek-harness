@@ -49,6 +49,8 @@
 
 Control Plane 负责 tenant 身份、认证、生命周期管理、策略决策和审计元数据。DSH 运行 Agent Loop，并协调模型与工具交互。Execution Plane 在 DSH 进程之外执行不可信代码。
 
+Workload token 的签发和验证由 [dsh-workload-identity](../../packages/identity/workload-identity/README.zh.md) 实现。只有 Control Plane 持有签名私钥；DSH Runtime 和 Tool Gateway 只接收用于验证的公钥。
+
 ## 3. 信任边界
 
 ### 3.1 Control Plane
