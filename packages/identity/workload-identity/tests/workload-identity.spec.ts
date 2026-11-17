@@ -117,9 +117,9 @@ describe('workload identity tokens', () => {
   })
 
   it('accepts a retiring public key by key id and rejects an unknown key id', () => {
-    const token = issue({ keyId: 'retiring-key' })
+    const token = issue({ keyId: 'retiring-key', privateKey: otherKeys.privateKey })
     const retiringKeys = new Map(publicKeys)
-    retiringKeys.set('retiring-key', signingKeys.publicKey)
+    retiringKeys.set('retiring-key', otherKeys.publicKey)
     expect(verifyWorkloadToken(token, {
       publicKeys: retiringKeys,
       issuer: ISSUER,
