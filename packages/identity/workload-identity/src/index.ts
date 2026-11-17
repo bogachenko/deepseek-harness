@@ -522,7 +522,7 @@ export function createWorkloadIdentityToolGuard(
   })
 
   return (execution) => {
-    const agentId = execution?.agent?.id
+    const agentId = execution.agent?.id
     if (typeof agentId !== 'string' || !IDENTIFIER_PATTERN.test(agentId)) {
       return deny('WORKLOAD_IDENTITY_REQUIRED')
     }
@@ -551,7 +551,7 @@ export function createWorkloadIdentityToolGuard(
 
     let nowSeconds: unknown
     try {
-      nowSeconds = options.nowSeconds?.() ?? Math.floor(Date.now() / 1000)
+      nowSeconds = options.nowSeconds === undefined ? Math.floor(Date.now() / 1000) : options.nowSeconds()
     } catch {
       return deny('WORKLOAD_POLICY_UNAVAILABLE')
     }
