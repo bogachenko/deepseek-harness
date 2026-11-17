@@ -2,8 +2,6 @@
 
 [English](threat-model.md) | 中文
 
-[English](threat-model.md) | 中文
-
 **状态：** 初始基线  
 **范围：** 在 Linux 主机上运行 DSH 的多租户 SaaS。
 
