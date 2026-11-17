@@ -183,6 +183,8 @@ Network access, if later required, must go through a controlled egress component
 
 ## 7. DSH production profile
 
+The first Restricted Agent composition is implemented as the standalone `sdk-minimal` bundle plus the reviewed overlay in [`restricted-profile.md`](restricted-profile.md). It deliberately avoids `dsh-base`, whose shared tool roster is broader than this first SaaS runtime needs.
+
 Production DSH bundles must be deliberately assembled from an allowlist of required capabilities.
 
 The initial Restricted profile must not expose:
