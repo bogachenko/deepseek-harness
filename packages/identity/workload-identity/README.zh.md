@@ -60,6 +60,25 @@ console.log(verified.tenantId)
 
 验证成功后返回被冻结的 claims。无效令牌会抛出 WORKLOAD_TOKEN_INVALID；无效的服务端密钥或验证器配置会抛出 WORKLOAD_TOKEN_CONFIGURATION_INVALID。
 
+### 工具执行授权
+
+本包还导出 createWorkloadIdentityToolGuard。将其返回的函数注册到根 ctx.tools.guard()，这样现有 DSH 工具流水线就会在可扩展的 pre-execute hooks 之后、工具函数执行之前检查每次根调用和嵌套调用。
+
+```ts
+import { createWorkloadIdentityToolGuard } from '@deepseek-ai/dsh-workload-identity'
+
+ctx.tools.guard(createWorkloadIdentityToolGuard({
+  issuer: 'https://control.example',
+  audience: 'dsh-tool-gateway',
+  resolveBinding: agentId => identityStore.findLiveBinding(agentId),
+  requiredCapability: toolName => toolPolicy.capabilityForTool(toolName),
+}))
+```
+
+identityStore.findLiveBinding 必须返回经过验证的 identity，以及来自权威服务端记录的 tenant 和当前 runtime ID。toolPolicy.capabilityForTool 必须将每个可执行工具名称映射到一个必需的 capability；没有映射的工具会被拒绝。不要从模型参数或用户可控的请求字段中推导这些值。该 guard 会在每次调用时检查 tenant、agent、runtime、issuer、audience、有效期和 capability。没有 Agent 的调用也会被拒绝。
+
+该 guard 是普通函数，不是 Cordis 插件。identity store、capability 映射和注册生命周期均由应用负责。
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -78,8 +97,9 @@ console.log(verified.tenantId)
 
 | 文件 | 职责 |
 |---|---|
-| [src/index.ts](src/index.ts) | 普通库 API：Ed25519 令牌签发/验证、claims 校验、key id 选择和稳定错误码。 |
+| [src/index.ts](src/index.ts) | 普通库 API：Ed25519 令牌签发/验证、已验证 claims 来源证明、工具执行 guard、claims 校验和稳定错误码。 |
 | [tests/workload-identity.spec.ts](tests/workload-identity.spec.ts) | 验证签名、密钥轮换、issuer/audience、时间范围、capabilities 校验、规范 payload 和密钥隔离。 |
+| [tests/tool-guard.spec.ts](tests/tool-guard.spec.ts) | 验证 Agent、tenant、runtime、issuer、audience、有效期和工具 capability 的 fail-closed 授权。 |
 
 </details>
 
@@ -112,7 +132,7 @@ console.log(verified.tenantId)
 <a id="known-limitations-and-deferred-work"></a>
 
 - 没有撤销或重放存储——被盗用的 bearer token 在过期前可以重复使用；jti 只是标识符，不保证令牌只能使用一次。平台必须轮换 runtime token 并限制其有效期。
-- 不负责资源授权——签名 capabilities 只表明 runtime 获得的能力集合；Tool Gateway 仍必须逐项操作、逐个租户资源执行授权。
+- 不负责资源级授权——guard 只检查 runtime 是否可以调用某个工具，不判断它是否可以访问某条租户数据。每个业务工具仍必须执行 tenant ownership 和资源级策略检查。
 - 密钥管理在外部——私钥存储、公钥分发、密钥轮换周期和紧急密钥退役由 Control Plane 部署负责，本库不实现这些功能。
 
 <a id="dev-note"></a>
