@@ -187,6 +187,14 @@ function loadPrivateKey(value: string | KeyObject): KeyObject {
 
 function loadPublicKey(value: string | KeyObject): KeyObject {
   try {
+    if (typeof value === 'string') {
+      try {
+        createPrivateKey(value)
+        throw invalidConfiguration()
+      } catch (error) {
+        if (error instanceof WorkloadIdentityError) throw error
+      }
+    }
     const key = typeof value === 'string' ? createPublicKey(value) : value
     if (key.type !== 'public' || key.asymmetricKeyType !== 'ed25519') throw invalidConfiguration()
     return key
