@@ -202,6 +202,10 @@ describe('workload identity tokens', () => {
     expect(() => verify(issue(), {
       publicKeys: new Map([[KEY_ID, signingKeys.privateKey]]),
     })).toThrowError(WorkloadIdentityError)
+    const privatePem = signingKeys.privateKey.export({ format: 'pem', type: 'pkcs8' }).toString()
+    expect(() => verify(issue(), {
+      publicKeys: new Map([[KEY_ID, privatePem]]),
+    })).toThrowError(WorkloadIdentityError)
     expect(() => verifyWorkloadToken(issue(), {
       publicKeys: new Map(),
       issuer: ISSUER,
