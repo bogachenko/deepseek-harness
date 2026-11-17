@@ -2,6 +2,8 @@
 
 [English](threat-model.md) | 中文
 
+[English](threat-model.md) | 中文
+
 **状态：** 初始基线  
 **范围：** 在 Linux 主机上运行 DSH 的多租户 SaaS。
 
@@ -64,8 +66,8 @@
 **场景：** 模型修改工具参数中的 tenant 标识，或者已被攻陷的 Runtime 请求其他 tenant 的对象。
 
 **必要控制：**
-- 从经过认证的 workload 上下文推导 tenant 身份；
-- 绝不能仅根据工具参数中提供的 tenant ID 授权；
+- Tool Gateway 必须验证 workload token 的签名、issuer、audience 和过期时间；
+- 从已验证的 claims 推导 tenant 身份，绝不采用请求参数中的身份；
 - 在服务层和数据访问层强制应用 tenant 过滤；
 - 测试直接对象引用和 confused-deputy 场景。
 
@@ -75,6 +77,7 @@
 
 **必要控制：**
 - DSH 文件或环境变量中不得包含长期集成密钥；
+- workload token 签名私钥必须保留在 Control Plane；Runtime 和 Gateway 进程只接收验证公钥；
 - 不挂载主机 home 目录；
 - Credential Broker 在服务端保管密钥；
 - 工具操作在内部使用凭据，并且只返回经过授权的结果；
