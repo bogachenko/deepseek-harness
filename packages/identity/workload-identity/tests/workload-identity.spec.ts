@@ -178,6 +178,20 @@ describe('workload identity tokens', () => {
     expectInvalid(() => verify(input + '.' + signature))
   })
 
+  it('rejects identities that would produce an oversized token', () => {
+    const longCapabilities = Array.from(
+      { length: 64 },
+      (_, index) => 'tool.' + String(index).padStart(3, '0') + 'x'.repeat(120),
+    )
+    expect(() => issueWorkloadToken({ ...identity, capabilities: longCapabilities }, {
+      privateKey: signingKeys.privateKey,
+      keyId: KEY_ID,
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      nowSeconds: NOW,
+    })).toThrowError(WorkloadIdentityError)
+  })
+
   it('rejects invalid identity values and duplicate capabilities at issuance', () => {
     expect(() => issueWorkloadToken({ ...identity, tenantId: '../other-tenant' }, {
       privateKey: signingKeys.privateKey,
