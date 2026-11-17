@@ -70,7 +70,7 @@ console.log(verified.tenantId)
 
 ### 设计边界
 
-版本化 envelope 固定使用 Ed25519，不接受令牌自行指定算法。key id 包含在签名输入中，因此密钥轮换时可以保留旧公钥，同时让新令牌使用新的 id。Payload 解析会拒绝未知 claims、重复或未排序的 capabilities、非规范 JSON、格式错误的标识符，以及超过 300 秒的有效期。
+版本化 envelope 固定使用 Ed25519，不接受令牌自行指定算法。key id 包含在签名输入中，因此密钥轮换时可以保留旧公钥，同时让新令牌使用新的 id。Payload 解析会拒绝未知 claims、重复或未排序的 capabilities、非规范 JSON、格式错误的标识符，以及超过 300 秒的有效期。完整紧凑令牌限制为 8 KiB，最多携带 64 个 capabilities。
 
 签发方和验证方通过密钥材料明确分离：只有签发方接收私钥，验证方只接受公钥。令牌是 bearer 凭据，在过期前仍可使用；本包不存储或撤销令牌。
 
