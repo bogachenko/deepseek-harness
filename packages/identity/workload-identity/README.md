@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package issues and verifies short-lived Ed25519-signed identities for tenant-scoped agent runtimes. The Control Plane signs tokens with a private key; DSH Runtime and Tool Gateway services verify them with public keys. The private key is not needed by verifiers and must never be provisioned to an agent runtime.
+This package issues and verifies short-lived Ed25519-signed identities for tenant-scoped agent runtimes. The Control Plane signs tokens with a private key; Tool Gateway verifies them with public keys. DSH Runtime only presents the short-lived bearer token to its intended private service audience. The private key must never be provisioned to an agent runtime.
 
 ## Table of Contents
 
@@ -26,7 +26,7 @@ This package issues and verifies short-lived Ed25519-signed identities for tenan
 <a id="use-this-package"></a>
 ## Use this package
 
-The trusted Control Plane calls issueWorkloadToken after authenticating the platform request and resolving the tenant, agent, runtime, and granted capabilities from server-side state. It delivers the resulting bearer token only to the intended runtime or service audience. A DSH Runtime or Tool Gateway calls verifyWorkloadToken with its trusted public-key set and exact issuer and audience.
+The trusted Control Plane calls issueWorkloadToken after authenticating the platform request and resolving the tenant, agent, runtime, and granted capabilities from server-side state. It delivers the resulting bearer token only to the intended runtime or service audience. Tool Gateway calls verifyWorkloadToken with its trusted public-key set and exact issuer and audience. DSH Runtime only presents the bearer token to that private gateway endpoint.
 
 Never derive tenant identity or capabilities from model-generated arguments. Never place the signing private key in DSH Runtime, a sandbox, a prompt, a tool result, or a log. Treat the token as a bearer credential and do not persist or disclose it unnecessarily.
 
