@@ -20,6 +20,8 @@ The identity group contains two separate identity mechanisms. anonymous-user-id 
 <a id="packages"></a>
 ## Packages
 
+Use anonymous-user-id for installation-level correlation; use workload-identity when a trusted service must authenticate a tenant-scoped runtime.
+
 | Package | Role |
 |---|---|
 | [anonymous-user-id](anonymous-user-id/README.md) | Gives one harness home a stable anonymous correlation id for telemetry, feedback, and DeepSeek provider records. |
