@@ -30,6 +30,7 @@ const KEY_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
 const CAPABILITY_PATTERN = /^[a-z][a-z0-9:._-]{0,127}$/
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const verifiedWorkloadIdentities = new WeakSet<object>()
 const PAYLOAD_KEYS = ['v', 'iss', 'aud', 'tenantId', 'agentId', 'runtimeId', 'capabilities', 'jti', 'iat', 'exp'] as const
 
 /** Stable error codes returned by the workload-token API. */
@@ -421,9 +422,156 @@ export function verifyWorkloadToken(
     || payload.exp <= nowSeconds - clockToleranceSeconds) {
     throw invalidToken()
   }
-  return Object.freeze({
+  const verified = Object.freeze({
     ...payload,
     capabilities: Object.freeze([...payload.capabilities]),
     keyId,
   })
+  verifiedWorkloadIdentities.add(verified)
+  return verified
+}
+
+/**
+ * Tell whether a value is the original frozen object returned by
+ * verifyWorkloadToken in this process. A structurally similar object is not
+ * accepted as proof of verification.
+ */
+export function isVerifiedWorkloadIdentity(value: unknown): value is VerifiedWorkloadIdentity {
+  return typeof value === 'object' && value !== null && verifiedWorkloadIdentities.has(value)
+}
+
+/** Trusted server-side binding for one live Agent and its active runtime. */
+export interface WorkloadIdentityBinding {
+  /** Verified claims obtained by verifyWorkloadToken in this process. */
+  readonly identity: VerifiedWorkloadIdentity
+  /** Tenant id read from the authoritative Agent record, not from request arguments. */
+  readonly tenantId: string
+  /** Active runtime id read from the authoritative runtime registry. */
+  readonly runtimeId: string
+}
+
+/** Minimal execution shape consumed by the workload-identity guard. */
+export interface WorkloadToolExecution {
+  readonly name: string
+  /** Absent for service calls that do not execute on behalf of an Agent. */
+  readonly agent?: { readonly id: string }
+}
+
+/** Stable denial codes emitted by the workload-identity tool guard. */
+export type WorkloadIdentityToolGuardErrorCode =
+  | 'WORKLOAD_IDENTITY_REQUIRED'
+  | 'WORKLOAD_IDENTITY_BINDING_INVALID'
+  | 'WORKLOAD_IDENTITY_ISSUER_INVALID'
+  | 'WORKLOAD_IDENTITY_AUDIENCE_INVALID'
+  | 'WORKLOAD_IDENTITY_EXPIRED'
+  | 'WORKLOAD_CAPABILITY_UNMAPPED'
+  | 'WORKLOAD_CAPABILITY_DENIED'
+  | 'WORKLOAD_POLICY_UNAVAILABLE'
+
+/** A structured, model-safe denial returned by the workload-identity guard. */
+export interface WorkloadIdentityToolGuardDenial {
+  readonly reason: string
+  readonly info: {
+    readonly name: 'WorkloadIdentityAuthorizationError'
+    readonly code: WorkloadIdentityToolGuardErrorCode
+  }
+}
+
+/** Server-owned policy used to authorize each tool dispatch. */
+export interface WorkloadIdentityToolGuardOptions {
+  /** Exact issuer accepted by this Tool Runtime. */
+  readonly issuer: string
+  /** Exact audience accepted by this Tool Runtime. */
+  readonly audience: string
+  /**
+   * Resolve the live Agent to its current verified identity and authoritative
+   * tenant/runtime records. This callback must never trust model or request
+   * arguments for tenant, agent, or runtime ownership.
+   */
+  readonly resolveBinding: (agentId: string) => WorkloadIdentityBinding | undefined
+  /**
+   * Map a registered tool name to exactly one required capability.
+   * Return undefined for an unmapped tool; the guard denies it.
+   */
+  readonly requiredCapability: (toolName: string) => string | undefined
+  /** Unix seconds clock; injectable for deterministic tests. */
+  readonly nowSeconds?: () => number
+}
+
+/**
+ * Create a monotonic guard for ctx.tools.guard(). It runs after extensible
+ * pre-execute waterfalls and before the tool body, including nested PTC calls.
+ *
+ * The resolver must use trusted server-side Agent and runtime records. The
+ * guard verifies tenant, agent, runtime, issuer, audience, expiry, and the
+ * server-owned tool-to-capability mapping on every invocation.
+ */
+export function createWorkloadIdentityToolGuard(
+  options: WorkloadIdentityToolGuardOptions,
+): (execution: Readonly<WorkloadToolExecution>) => WorkloadIdentityToolGuardDenial | undefined {
+  if (!isRecord(options)) throw invalidConfiguration()
+  validateIssuerAudience(options.issuer, options.audience)
+  if (typeof options.resolveBinding !== 'function' || typeof options.requiredCapability !== 'function'
+    || (options.nowSeconds !== undefined && typeof options.nowSeconds !== 'function')) {
+    throw invalidConfiguration()
+  }
+
+  const deny = (code: WorkloadIdentityToolGuardErrorCode): WorkloadIdentityToolGuardDenial => ({
+    reason: 'workload identity is not authorized to execute this tool',
+    info: { name: 'WorkloadIdentityAuthorizationError', code },
+  })
+
+  return (execution) => {
+    const agentId = execution?.agent?.id
+    if (typeof agentId !== 'string' || !IDENTIFIER_PATTERN.test(agentId)) {
+      return deny('WORKLOAD_IDENTITY_REQUIRED')
+    }
+
+    let binding: unknown
+    try {
+      binding = options.resolveBinding(agentId)
+    } catch {
+      return deny('WORKLOAD_POLICY_UNAVAILABLE')
+    }
+    if (!isRecord(binding)
+      || typeof binding.tenantId !== 'string' || !IDENTIFIER_PATTERN.test(binding.tenantId)
+      || typeof binding.runtimeId !== 'string' || !IDENTIFIER_PATTERN.test(binding.runtimeId)
+      || !isVerifiedWorkloadIdentity(binding.identity)) {
+      return deny('WORKLOAD_IDENTITY_REQUIRED')
+    }
+
+    const identity = binding.identity
+    if (identity.agentId !== agentId
+      || identity.tenantId !== binding.tenantId
+      || identity.runtimeId !== binding.runtimeId) {
+      return deny('WORKLOAD_IDENTITY_BINDING_INVALID')
+    }
+    if (identity.iss !== options.issuer) return deny('WORKLOAD_IDENTITY_ISSUER_INVALID')
+    if (identity.aud !== options.audience) return deny('WORKLOAD_IDENTITY_AUDIENCE_INVALID')
+
+    let nowSeconds: unknown
+    try {
+      nowSeconds = options.nowSeconds?.() ?? Math.floor(Date.now() / 1000)
+    } catch {
+      return deny('WORKLOAD_POLICY_UNAVAILABLE')
+    }
+    if (typeof nowSeconds !== 'number' || !Number.isSafeInteger(nowSeconds) || nowSeconds < 0) {
+      return deny('WORKLOAD_POLICY_UNAVAILABLE')
+    }
+    if (identity.exp <= nowSeconds) return deny('WORKLOAD_IDENTITY_EXPIRED')
+
+    let requiredCapability: unknown
+    try {
+      requiredCapability = options.requiredCapability(execution.name)
+    } catch {
+      return deny('WORKLOAD_POLICY_UNAVAILABLE')
+    }
+    if (typeof requiredCapability !== 'string' || !CAPABILITY_PATTERN.test(requiredCapability)) {
+      return deny('WORKLOAD_CAPABILITY_UNMAPPED')
+    }
+    if (!identity.capabilities.includes(requiredCapability)) {
+      return deny('WORKLOAD_CAPABILITY_DENIED')
+    }
+    return undefined
+  }
 }
