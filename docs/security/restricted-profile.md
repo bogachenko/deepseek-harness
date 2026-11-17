@@ -57,7 +57,7 @@ The SDK profile owns stdin/stdout for JSON-RPC. Do not expose that process direc
 This profile is not, by itself, a production security boundary.
 
 - It removes model-visible local execution and filesystem tools; it does not isolate the DSH process from the Linux host.
-- The SDK-minimal DeepSeek adapter reads `DEEPSEEK_API_KEY` from the DSH process environment. Do not load untrusted plugins into this process. A future Model Gateway must hold provider credentials outside the runtime.
+- The standalone `sdk-minimal` profile currently uses direct provider authentication (for DeepSeek, `DEEPSEEK_API_KEY`) inside the DSH process. This is development/SDK behavior only, not the production SaaS credential boundary. Production Runtime must use the provider-independent Model Gateway; provider API keys and OAuth refresh tokens stay outside Runtime. Direct provider egress from production Runtime must be denied.
 - The profile's `cordis.patch.yml`, home-level patch, and launch overlays are trusted deployment configuration. Tenant users must not be allowed to edit them or supply arbitrary `--patch` arguments.
 - Use a separate restricted Linux runtime and DSH home per tenant. Do not mount host home directories, SSH material, container-runtime sockets, or platform secrets.
 - This profile does not yet implement Tool Gateway, Credential Broker, or Advanced Execution Broker. It must not be advertised as production-ready until those boundaries and their tests exist.
@@ -66,6 +66,6 @@ This profile is not, by itself, a production security boundary.
 
 1. Add a platform-owned native tool that calls the Tool Gateway using a short-lived token issued by the Workload Identity package.
 2. Enforce tenant and agent identity server-side; never accept them from model-supplied tool arguments.
-3. Move model-provider credentials behind a Model Gateway.
+3. Implement the provider-independent Model Gateway for multiple providers (not only DeepSeek); move all production model-provider credentials and provider protocol handling behind it.
 4. Add cross-tenant and prompt-injection regression tests.
 5. Implement Advanced execution separately through the Execution Broker and a verified sandbox backend.
