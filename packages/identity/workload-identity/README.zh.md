@@ -1,5 +1,5 @@
 ---
-description: "为租户隔离的 DSH Runtime 签发并验证短时有效的 Ed25519 工作负载身份。"
+description: "用于签发和验证租户隔离 DSH Runtime 短时有效身份的 Ed25519 工作负载令牌库。"
 kind: "package-library"
 ---
 
@@ -9,13 +9,13 @@ kind: "package-library"
 
 ## 概述
 
-本包为按租户隔离的 Agent Runtime 签发并验证短时有效的 Ed25519 签名身份。Control Plane 使用私钥签发令牌；Tool Gateway 使用公钥验证令牌。DSH Runtime 只会向预期的私有服务 audience 出示短时有效的 bearer token。绝不能向 Agent Runtime 配置签名私钥。
+本包为租户隔离的 DSH Runtime 签发短时有效的 Ed25519 工作负载令牌。Control Plane 使用 issueWorkloadToken，Tool Gateway 使用 verifyWorkloadToken 对每个 Runtime 进行认证。该库负责令牌格式和 claims 验证，但不负责私钥存储、令牌撤销或资源级授权。
 
 ## 目录
 
 - [使用本包](#use-this-package)
-- [令牌约定](#token-contract)
-- [API](#api)
+- [理解实现](#understand-the-implementation)
+- [延伸阅读](#further-exploration)
 - [模型体验](#model-experience)
 - [已知限制与延期工作](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
@@ -23,35 +23,87 @@ kind: "package-library"
 -----
 
 <a id="use-this-package"></a>
-<a id="use-this-package"></a>
 ## 使用本包
 
-可信的 Control Plane 在完成平台请求认证，并从服务端状态解析出 tenant、agent、runtime 和已授予的 capabilities 后，调用 issueWorkloadToken。它只会将生成的 bearer token 交付给预期的 runtime 或服务 audience。Tool Gateway 使用可信公钥集合以及精确的 issuer 和 audience 调用 verifyWorkloadToken。DSH Runtime 只向私有 Gateway 端点出示 bearer token。
+### 适用场景
 
-绝不能从模型生成的参数推导 tenant 身份或 capabilities。绝不能把签名私钥放入 DSH Runtime、沙箱、提示词、工具结果或日志。应将令牌视为 bearer 凭据，不要不必要地持久化或披露。
+当可信的 Control Plane 需要为一个 tenant、agent 和 runtime 签发短时有效身份，并且 Tool Gateway 需要在分发业务操作前验证该身份时，使用此库。它是普通 Node 模块，不是 Cordis 插件，也不是可安装的 Profile layer。
 
-<a id="token-contract"></a>
-## 令牌约定
+### 入口示例
 
-紧凑令牌采用四个以点分隔的片段：dsh-wid-v1、key id、base64url payload 和 Ed25519 签名。固定格式版本选择 Ed25519；令牌中不存在可由令牌控制的算法字段。key id 属于签名输入，并用于选择可信公钥，因此在轮换期间可以继续保留旧验证密钥。
+下面的完整示例会为本地 smoke test 创建临时密钥对。Production 环境中，私钥必须保留在 Control Plane，并且只向 Tool Gateway 配置公钥。
 
-签名 payload 包含版本、issuer、audience、tenant id、agent id、runtime id、排序后的 capabilities、唯一令牌 id、签发时间和过期时间。未知 claims、重复或未排序的 capabilities、非规范 JSON、格式错误的 base64url 以及无效标识符都会被拒绝。一个令牌最多携带 64 个 capabilities。
+```ts
+import { generateKeyPairSync } from 'node:crypto'
+import { issueWorkloadToken, verifyWorkloadToken } from '@deepseek-ai/dsh-workload-identity'
 
-签发默认有效期为 300 秒，且不能超过该上限。验证要求 issuer 和 audience 精确匹配，并允许最多 60 秒的时钟偏差；默认值为 30 秒。验证成功后返回被冻结的身份对象和 capabilities 列表。
+const { privateKey, publicKey } = generateKeyPairSync('ed25519')
+const identity = {
+  tenantId: 'tenant-a',
+  agentId: 'agent-a',
+  runtimeId: 'runtime-a',
+  capabilities: ['crm.read'],
+}
+const token = issueWorkloadToken(identity, {
+  privateKey,
+  keyId: 'control-2026-01',
+  issuer: 'https://control.example',
+  audience: 'dsh-tool-gateway',
+})
+const verified = verifyWorkloadToken(token, {
+  publicKeys: new Map([['control-2026-01', publicKey]]),
+  issuer: 'https://control.example',
+  audience: 'dsh-tool-gateway',
+})
+console.log(verified.tenantId)
+```
 
-<a id="api"></a>
-## API
+验证成功后返回被冻结的 claims。无效令牌会抛出 WORKLOAD_TOKEN_INVALID；无效的服务端密钥或验证器配置会抛出 WORKLOAD_TOKEN_CONFIGURATION_INVALID。
 
-issueWorkloadToken 接收由服务端解析的 WorkloadIdentity，以及包含 Ed25519 私钥、key id、issuer、audience 和可选有效期的签发选项，并返回紧凑 bearer token。
+-----
 
-verifyWorkloadToken 接收令牌和验证选项；验证选项包含可信公钥映射、预期 issuer、预期 audience 以及可选时钟设置。它返回 VerifiedWorkloadIdentity。所有令牌验证失败统一使用 WORKLOAD_TOKEN_INVALID；无效的服务端密钥或验证器配置使用 WORKLOAD_TOKEN_CONFIGURATION_INVALID。
+<a id="understand-the-implementation"></a>
+## 理解实现
+
+<details>
+<summary>实现内部细节 — 点击展开</summary>
+
+### 设计边界
+
+版本化 envelope 固定使用 Ed25519，不接受令牌自行指定算法。key id 包含在签名输入中，因此密钥轮换时可以保留旧公钥，同时让新令牌使用新的 id。Payload 解析会拒绝未知 claims、重复或未排序的 capabilities、非规范 JSON、格式错误的标识符，以及超过 300 秒的有效期。
+
+签发方和验证方通过密钥材料明确分离：只有签发方接收私钥，验证方只接受公钥。令牌是 bearer 凭据，在过期前仍可使用；本包不存储或撤销令牌。
+
+### 源码索引
+
+| 文件 | 职责 |
+|---|---|
+| [src/index.ts](src/index.ts) | 普通库 API：Ed25519 令牌签发/验证、claims 校验、key id 选择和稳定错误码。 |
+| [tests/workload-identity.spec.ts](tests/workload-identity.spec.ts) | 验证签名、密钥轮换、issuer/audience、时间范围、capabilities 校验、规范 payload 和密钥隔离。 |
+
+</details>
+
+-----
+
+<a id="further-exploration"></a>
+## 延伸阅读
+
+在将本库接入服务之前，请先阅读架构和威胁模型。
+
+- [Identity 组说明](../README.zh.md) — 同组 package 及 identity 系列的范围。
+- [安全架构](../../../docs/security/architecture.zh.md) — Control Plane、Runtime、Tool Gateway 和 Execution Plane 的边界。
+- [威胁模型](../../../docs/security/threat-model.zh.md) — 本包帮助应对的 workload identity 和跨 tenant 威胁。
+- [Restricted DSH Profile](../../../docs/security/restricted-profile.zh.md) — 当前面向模型的能力限制。
+- [Node.js crypto API](https://nodejs.org/api/crypto.html) — Ed25519 密钥对象、签名和验证原语。
+
+-----
 
 <a id="model-experience"></a>
 ## 模型体验
 
-无；本包签发和验证模型不可见的工作负载凭据，不注册任何面向模型的内容。
+None, as this package signs and verifies model-hidden workload credentials and registers no model-facing content.
 
-#### KV Cache 影响
+#### KV Cache effect
 
 无；工作负载身份在模型请求之外验证，不会改变提示词 token。
 
@@ -64,6 +116,11 @@ verifyWorkloadToken 接收令牌和验证选项；验证选项包含可信公钥
 - 密钥管理在外部——私钥存储、公钥分发、密钥轮换周期和紧急密钥退役由 Control Plane 部署负责，本库不实现这些功能。
 
 <a id="dev-note"></a>
-## 开发备注
+### 开发备注
+
+<details>
+<summary>维护者工作上下文 — 点击展开</summary>
 
 无。
+
+</details>
