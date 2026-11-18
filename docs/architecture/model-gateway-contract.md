@@ -1,8 +1,8 @@
 # Model Gateway API and Provider Adapter Contract
 
 - **Status:** Approved by product owner
-- **Date:** 2026-11-17
-- **Related decision:** PD-027
+- **Date:** 2026-11-18
+- **Related decisions:** PD-027, PD-037, PD-038, PD-039, PD-040, PD-041
 - **Related ADR:** ADR-009
 - **DSH compatibility reference:** `packages/llm/llm/src/types.ts`
 
@@ -45,7 +45,7 @@ Example response:
 }
 ```
 
-The public model `id` is a platform model alias, not a provider model ID. The Gateway maps it to a provider and provider model using server-side configuration. Runtime cannot submit provider base URLs, provider IDs, API keys, or arbitrary provider options.
+The public model `id` is a global platform model alias, not a provider model ID. The platform maintains one central catalog; tenant policy only controls which catalog aliases are enabled for each Tenant. The Gateway maps an alias to a provider, provider model, endpoint, and capability descriptor using server-side configuration. Runtime cannot submit provider base URLs, provider IDs, API keys, credential references, or arbitrary provider options. Tenant-specific aliases and arbitrary tenant-defined endpoints are not part of version 1.
 
 ### 2.2 Generate
 
@@ -120,6 +120,9 @@ DSH attachment references point to Runtime-local storage and are not usable by a
 - Response contains an opaque `attachmentId`, verified media type, byte length, dimensions, and expiry.
 - Generate requests refer to the uploaded image by this Gateway attachment ID.
 - Attachments are scoped to tenant and Runtime from verified token claims, expire automatically, and cannot be fetched by another tenant/runtime.
+- Image bytes are stored in a separate S3-compatible object store, never on the Runtime or Gateway local filesystem as durable storage. Gateway object keys are generated server-side and include the verified tenant/runtime scope; buckets remain private.
+- Object metadata records verified media type, byte length, tenant/runtime binding, and expiry. Every read checks scope and expiry before returning bytes to a provider adapter.
+- S3 endpoint, region, bucket, and service credentials are deployment configuration. Runtime never receives an S3 credential, object key, or public object URL.
 - DSH Runtime may cache the Gateway attachment ID in memory for the attachment lifetime. No provider credential or bearer token is embedded in the attachment reference.
 
 File blocks retain the current DSH projection to deterministic text handles in version 1. Native remote file upload is deferred until a provider-neutral file contract is separately designed.
@@ -154,6 +157,8 @@ Initial stable codes:
 - `UPSTREAM_UNAVAILABLE`
 - `UPSTREAM_TIMEOUT`
 - `UPSTREAM_ERROR`
+- `PROVIDER_CREDENTIAL_UNAVAILABLE`
+- `BILLING_CONFIGURATION_MISSING`
 - `INTERNAL_ERROR`
 
 Messages must be safe and provider-neutral. Never return raw upstream response bodies, provider credential details, internal endpoints, or stack traces. Include `Retry-After` only when a safe retry delay is known.
@@ -179,7 +184,7 @@ The current token library does not implement revocation or replay prevention. Un
 
 ## 5. Provider adapter interface
 
-The Gateway owns a provider adapter registry. Adapters receive only a server-resolved route and a request-scoped credential handle/value from the Gateway's credential service; this interface is internal and never exposed to Runtime.
+The Gateway owns a provider adapter registry. Initial adapters cover OpenAI-compatible chat-completions endpoints (DeepSeek, OpenAI, Qwen, Mistral, and compatible/self-hosted endpoints), Anthropic Messages, and Google Gemini streaming generation. Adapters receive only a server-resolved route and a request-scoped credential handle/value from the Gateway's credential service; this interface is internal and never exposed to Runtime. Provider-specific SDK/protocol details remain behind the adapter boundary.
 
 Conceptual TypeScript contract:
 
@@ -216,22 +221,28 @@ Adapter responsibilities:
 - Never log credentials or full sensitive request content.
 - Never perform tenant authorization or choose a tenant; the Gateway does that before invoking the adapter.
 
-The Gateway's internal credential handle must not be serializable, logged, cached in model/session data, or returned to the Runtime. Resolve credentials per request (or through a tightly controlled short-lived in-memory cache) and support rotation without Runtime restart.
+The Gateway's internal credential handle must not be serializable, logged, cached in model/session data, or returned to the Runtime. Both platform-managed provider credentials and Tenant-owned BYOK credentials are supported. Server-side Tenant/model policy selects `platform`, `tenant`, or `tenant_preferred` credential mode; fallback from BYOK to a platform key occurs only when `tenant_preferred` is explicitly configured. Control Plane stores credentials encrypted at rest and returns them only to authenticated Gateway instances over the internal service API. Gateway resolves credentials per request (or through a tightly controlled short-lived in-memory cache), clears request-scoped references after use, and supports rotation without Runtime restart.
 
 Provider-specific options are not passed through from Runtime. Any non-portable feature is exposed as a typed, capability-checked extension configured server-side and documented per adapter.
 
 ## 6. Server-side routing and policy
 
-- Runtime requests a tenant-visible model alias such as `fast`, not a provider ID, raw provider model ID, or base URL.
-- Control Plane/Gateway configuration maps the alias to provider, provider model, credential reference, endpoint, and policy.
-- Tenant policy determines which aliases are available, request/token budgets, rate limits, and spend limits.
-- Runtime-supplied tenant/provider/credential/endpoint fields are ignored or rejected; they are never authoritative.
+- Runtime requests a global platform model alias such as `fast`, not a provider ID, raw provider model ID, or base URL.
+- The central catalog maps each alias to provider, adapter, provider model, endpoint, supported modalities/capabilities, and platform-side credential reference.
+- Tenant policy is an allowlist over the central catalog. It also selects the credential source for each allowed model and may narrow the model's configured limits; it cannot change the provider route or endpoint.
+- Runtime-supplied tenant/provider/credential/endpoint fields are rejected; tenant identity is derived only from verified workload claims.
+- The Control Plane remains the persistent system of record. Gateway instances use authenticated, versioned Control Plane APIs for catalog, Tenant policy, credential resolution, authorization, and usage settlement; Gateway instances do not connect directly to PostgreSQL.
 - Model Gateway does not execute tools. Tool calls are returned as model output and are executed only by the DSH/Tool Gateway path.
 - Model Gateway does not execute code; Execution Broker remains the only code-execution boundary.
 
 ## 7. Operational and privacy requirements
 
-- Meter input/output/cache/reasoning tokens when provider data is available; mark unavailable fields as unknown rather than guessing.
+- Meter input/output/cache/reasoning tokens when provider data is available; mark unavailable fields as unknown rather than guessing. Reasoning tokens are a subset of output tokens unless a provider's authoritative usage contract states otherwise.
+- Record provider, provider model, tenant, runtime, request ID, latency, status, usage, provider cost when known, and customer charge when rated in server-side metering/audit records.
+- Enforce tenant-scoped request/token quotas, per-minute rate limits, concurrent-request limits, and hard spend limits before dispatch. Use atomic reservations so concurrent requests cannot bypass spend limits; settle reservations against authoritative provider usage after completion.
+- Use configurable billing plans and model rate cards. Rates are stored as integer micro-USD per million tokens (plus explicit image rates where applicable); do not hard-code prices. A model without an active rate card is not available for billable requests.
+- Unknown usage fields remain unknown. If authoritative usage is unavailable, record an unrated usage event and do not fabricate a token count or charge.
+- The initial billing capability is a usage ledger and configurable rating/invoice basis; automatic payment collection is not implied until a payment provider is separately selected.
 - Record provider, provider model, tenant, runtime, request ID, latency, status, and usage in server-side metering/audit records.
 - Do not log prompts, completions, image bytes, credentials, or bearer tokens by default.
 - Enforce request body, message count, tool schema, attachment size, stream duration, concurrency, and tenant spend limits.
@@ -245,14 +256,15 @@ Provider-specific options are not passed through from Runtime. Any non-portable 
 2. Preserve the DSH `GenerateOptions` and `StreamChunk` semantics at the Runtime boundary.
 3. Keep direct provider adapters only in standalone/development profiles.
 4. Migrate the production SaaS profile to the Gateway adapter and remove provider API credentials from its environment/configuration.
-5. Deny Runtime egress to provider endpoints at the network layer.
-6. Add contract, adapter-conformance, auth, quota, cancellation, streaming, attachment, and cross-tenant tests before enabling production traffic.
+5. Store image attachments in the separate S3-compatible object store and keep object access private and tenant/runtime-scoped.
+6. Deploy Gateway independently from Control Plane and scale stateless Gateway instances horizontally; persistent policy, credential, and billing state stays behind Control Plane APIs.
+7. Deny Runtime egress to provider endpoints at the network layer.
+8. Add contract, adapter-conformance, auth, quota, cancellation, streaming, attachment, and cross-tenant tests before enabling production traffic.
 
-## 9. Open items requiring implementation design
+## 9. Open items requiring separate product/configuration decisions
 
-- Exact attachment storage backend and cleanup lifecycle.
-- Whether provider/model aliases are globally managed or tenant-overridable within an approved catalog.
-- Exact quota dimensions and billing/pricing source of truth.
-- Whether Model Gateway is deployed as one process per VPS or independently scaled service.
-- OAuth account linking and refresh-token rotation flows for providers that use user-delegated auth.
+- Exact customer billing plans, price values, billing period/anchor, taxes, invoice presentation, and payment collection provider. The implementation must keep rate cards configurable and must not invent rates.
+- Concrete S3-compatible vendor, endpoint, bucket lifecycle policy, and operational retention settings; the Gateway contract is vendor-neutral.
+- OAuth account linking and refresh-token rotation for providers that use user-delegated authentication. Version 1 supports platform-managed API keys and Tenant BYOK API keys.
 - Full native file upload contract (not part of version 1).
+- Additional provider-specific capabilities that cannot be represented by the portable contract; each requires a typed, capability-checked extension.
