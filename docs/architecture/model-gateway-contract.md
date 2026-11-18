@@ -169,9 +169,10 @@ Use the existing `@deepseek-ai/dsh-workload-identity` Ed25519 token format.
 - Token lifetime: at most 300 seconds, matching the existing library limit.
 - Private signing key remains exclusively in Control Plane.
 - Credential Broker does not sign tokens; it obtains/relays a Control-Plane-signed token for the exact audience and Runtime identity.
-- Runtime keeps the bearer token in memory only and refreshes it before expiry through its authenticated Broker channel.
+- Runtime keeps the bearer token in memory only and refreshes it before expiry through its authenticated Broker channel. Model Gateway uses a separate service-authentication token for its Control Plane channel; it does not receive Host mTLS private keys.
 - Gateway verifies signature, key id, issuer, exact audience, expiry, and required capability on every request.
-- Gateway derives tenantId, agentId, and runtimeId only from verified claims. Request body values cannot override identity.
+- Gateway forwards the original workload token only in the Authorization header to authenticated Control Plane APIs; it is never copied into a URL or request body.
+- Control Plane independently verifies the same token, checks the required capability and active Runtime status, and derives tenantId, agentId, and runtimeId only from verified claims. Identity fields in internal request bodies are not accepted. Request body values cannot override identity.
 - Gateway also checks server-side Runtime status and tenant model policy; a valid signature alone does not grant access to an arbitrary model.
 - Tokens are never placed in URLs, request bodies, model prompts, tool arguments/results, logs, traces, or artifacts.
 
