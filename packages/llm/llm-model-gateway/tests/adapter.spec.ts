@@ -287,7 +287,7 @@ describe('ModelGatewayAdapter', () => {
     const invalidResponses = [
       {
         name: 'non-canonical expiry',
-        changes: { expiresAt: validExpiry.replace(/\\.\\d{3}Z$/, 'Z') },
+        changes: { expiresAt: validExpiry.replace(/\.\d{3}Z$/, 'Z') },
       },
       {
         name: 'expired expiry',
@@ -343,7 +343,7 @@ describe('ModelGatewayAdapter', () => {
 
       await expect(async () => {
         for await (const chunk of prepared.stream(generationOptions([imageMessage]))) void chunk
-      }, invalid.name).rejects.toMatchObject({ code: 'MALFORMED_RESPONSE' })
+      }).rejects.toMatchObject({ code: 'MALFORMED_RESPONSE' })
     }
   })
 
