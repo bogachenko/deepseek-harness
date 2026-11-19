@@ -16,7 +16,7 @@ DSH Runtime needs a secure way to obtain and refresh short-lived workload tokens
 4. Authenticate Broker to Control Plane over host-authenticated mTLS. Control Plane validates the active Host/Runtime binding and derives tenantId, agentId, runtimeId, and permitted capabilities from server-side registration and Runtime policy before signing a token.
 5. Keep the Ed25519 private signing key exclusively in Control Plane. Broker never signs, re-signs, broadens, or modifies token claims.
 6. Broker accepts only the fixed service audiences `dsh-model-gateway` and `dsh-tool-gateway`; it does not accept caller-supplied capability sets or arbitrary audiences.
-7. Runtime obtains separate short-lived tokens for Model Gateway and Tool Gateway through the socket, keeps active tokens in memory, and calls each Gateway over HTTPS Bearer authentication with its exact audience.
+7. Runtime obtains distinct short-lived, audience-scoped tokens for Model Gateway and Tool Gateway through the socket, keeps active tokens in memory, and calls each Gateway over HTTPS Bearer authentication. The Model Gateway token uses the exact audience `dsh-model-gateway` and required capability `model:invoke`; the Tool Gateway token uses its own exact audience `dsh-tool-gateway` and service-specific capabilities.
 8. Credential Broker never stores, retrieves, or serves provider credentials, integration credentials, OAuth refresh tokens, or other business secrets.
 9. gVisor job sandboxes must not receive the socket or workload tokens.
 10. A protected file is allowed only as a local-development fallback, not as the production design.
