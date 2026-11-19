@@ -1,6 +1,5 @@
 # Threat Model
 
-English | [中文](threat-model.zh.md)
 
 **Status:** Initial baseline  
 **Scope:** Multi-tenant SaaS using DSH on Linux hosts.
