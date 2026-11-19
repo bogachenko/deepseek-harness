@@ -41,7 +41,7 @@ Required outcomes:
 | Integration credentials | Tool Gateway and server-side integration-credential storage |
 | Provider credentials | Encrypted Control Plane storage; request-scoped access by Model Gateway |
 | Platform signing keys | Control Plane secret storage |
-| Workload identity | Short-lived audience-scoped identity |
+| Workload identity | Control Plane issuer, per-Runtime Credential Broker delivery, Runtime memory, Gateway verification |
 | DSH runtime | Tenant-scoped runtime boundary |
 | Host and container runtime | Host administration boundary |
 | Advanced job | Execution sandbox boundary |
