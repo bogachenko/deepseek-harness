@@ -36,3 +36,15 @@
   config:
     mode: read-only
     workspaceRoot: !!js process.cwd()
+
+# The production Runtime must not retain a direct provider credential route.
+- id: llm-deepseek
+  disabled: true
+
+# The Gateway adapter is the only model route in the Restricted Profile.
+- insert:
+    - id: llm-model-gateway
+      name: '@deepseek-ai/dsh-llm-model-gateway'
+      config:
+        baseURL: !!js process.env.DSH_MODEL_GATEWAY_URL
+        brokerSocketPath: !!js process.env.DSH_CREDENTIAL_BROKER_SOCKET

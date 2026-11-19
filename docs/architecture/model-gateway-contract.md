@@ -114,13 +114,34 @@ DSH attachment references point to Runtime-local storage and are not usable by a
 
 `POST /v1/attachments/images`
 
-- Authenticated with the same Model Gateway workload token.
-- Body contains raw image bytes, not a local filesystem path or local attachment ID.
-- Content type and byte length are validated against tenant policy.
-- Response contains an opaque `attachmentId`, verified media type, byte length, dimensions, and expiry.
-- Generate requests refer to the uploaded image by this Gateway attachment ID.
-- Attachments are scoped to tenant and Runtime from verified token claims, expire automatically, and cannot be fetched by another tenant/runtime.
-- DSH Runtime may cache the Gateway attachment ID in memory for the attachment lifetime. No provider credential or bearer token is embedded in the attachment reference.
+Request:
+- Authentication: `Bearer` workload token with `model:attachment:write`.
+- Content type: the verified image media type (`image/jpeg`, `image/png`, `image/webp`, or `image/gif`).
+- Body: raw image bytes, not JSON, base64, a local filesystem path, or a local attachment ID.
+
+Successful response: HTTP `201 Created`, `Content-Type: application/json`.
+
+```json
+{
+  "version": 1,
+  "attachmentId": "44444444-4444-4444-8444-444444444444",
+  "contentType": "image/png",
+  "byteLength": 1024,
+  "width": 800,
+  "height": 600,
+  "expiresAt": "2026-11-19T18:00:00.000Z"
+}
+```
+
+Response fields:
+- `version`: exactly `1`.
+- `attachmentId`: opaque Gateway-owned identifier; it is not a provider ID, URL, or Runtime-local attachment ID.
+- `contentType`: verified media type; it must match the uploaded image.
+- `byteLength`: positive safe integer equal to the number of uploaded bytes.
+- `width` and `height`: positive safe integers describing the verified intrinsic image dimensions in pixels.
+- `expiresAt`: canonical ISO 8601 UTC timestamp with millisecond precision, for example `2026-11-19T18:00:00.000Z`.
+
+The version-one response contains exactly these seven fields, including `version`; unknown fields are not part of this contract. Generate requests refer to the uploaded image by this Gateway attachment ID. Attachments are scoped to tenant and Runtime from verified token claims, expire automatically, and cannot be fetched by another tenant/runtime. DSH Runtime may cache the Gateway attachment ID in memory only until `expiresAt`. No provider credential or bearer token is embedded in the attachment reference.
 
 File blocks retain the current DSH projection to deterministic text handles in version 1. Native remote file upload is deferred until a provider-neutral file contract is separately designed.
 

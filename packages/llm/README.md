@@ -1,5 +1,5 @@
 ---
-description: "The LLM capability group: a provider-neutral model-call service, the DeepSeek and pi-ai provider adapters, request-retry execution, and replay-aware token measurement."
+description: "The LLM capability group: a provider-neutral model-call service, the DeepSeek, pi-ai, and Model Gateway provider adapters, request-retry execution, and replay-aware token measurement."
 kind: "package-group"
 ---
 
@@ -27,6 +27,7 @@ The llm group provides the harness's model-call capability: one provider-neutral
 | [`llm/`](llm/README.md) | Streams one model call through a registered provider adapter and shares the harness message, block, and chunk vocabulary | `ctx.llm` |
 | [`llm-deepseek/`](llm-deepseek/README.md) | Shared Messages protocol, request configuration, and model capabilities | — |
 | [`llm-deepseek-api-key/`](llm-deepseek-api-key/README.md) | API-key authentication and discovery for the official route | `ctx.llm` |
+| [`llm-model-gateway/`](llm-model-gateway/README.md) | SaaS Runtime adapter authenticated by the local Credential Broker and routed only through Model Gateway | `ctx.llm` |
 | [`llm-deepseek-account/`](llm-deepseek-account/README.md) | Account-token authentication, invalidation, and discovery | `ctx.llm` |
 | [`llm-pi-ai/`](llm-pi-ai/README.md) | Serves configured provider routes through pi-ai catalogs and wire protocols, including hand-declared gateways | registers on `ctx.llm` |
 | [`deepseek-llm-api-extensions/`](deepseek-llm-api-extensions/README.md) | Registers lifecycle-owned top-level fields on official DeepSeek requests | `ctx.deepseekLlmApiExtensions` |

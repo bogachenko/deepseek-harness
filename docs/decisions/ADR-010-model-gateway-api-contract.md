@@ -23,7 +23,7 @@ PD-027 and ADR-009 approve a provider-independent Model Gateway as the productio
 9. Production Runtime has no direct provider API egress or fallback. Standalone/development DSH profiles may continue to use direct adapters.
 10. Image attachments use a Gateway-owned, tenant/runtime-scoped upload reference in version 1. Native file upload is deferred; current DSH file blocks remain projected to text handles.
 11. The existing workload-token library's 300-second maximum is retained. Credential Broker relays Control-Plane-signed tokens; it does not possess or use the signing private key.
-12. This ADR is proposed. Open implementation details in the linked contract must be resolved before production rollout; it does not claim implementation exists.
+12. This ADR is approved. Open implementation details in the linked contract remain implementation work and must be verified before production rollout; approval does not claim production readiness.
 
 ## Rationale
 
