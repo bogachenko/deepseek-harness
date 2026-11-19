@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The package issues short-lived Ed25519 workload tokens for tenant-scoped DSH runtimes. The Control Plane uses issueWorkloadToken, and Tool Gateway uses verifyWorkloadToken to authenticate each runtime. The library owns token format and claim validation, but not private-key storage, revocation, or resource-level authorization.
+The package issues short-lived Ed25519 workload tokens for tenant-scoped DSH runtimes. The Control Plane uses issueWorkloadToken; Model Gateway and Tool Gateway use verifyWorkloadToken to authenticate each Runtime with separate exact audiences. The library owns token format and claim validation, but not private-key storage, revocation, or resource-level authorization.
 
 ## Table of Contents
 
@@ -27,11 +27,11 @@ The package issues short-lived Ed25519 workload tokens for tenant-scoped DSH run
 
 ### When to use it
 
-Use this library when the trusted Control Plane must issue a short-lived identity for one tenant, agent, and runtime, and Tool Gateway must verify that identity before dispatching a business operation. It is a plain Node module, not a Cordis plugin or an installable profile layer.
+Use this library when the trusted Control Plane must issue a short-lived identity for one tenant, agent, and Runtime, and Model Gateway or Tool Gateway must verify that identity for its own exact audience before serving a request. The production audiences are `dsh-model-gateway` and `dsh-tool-gateway`. It is a plain Node module, not a Cordis plugin or an installable profile layer.
 
 ### Entry point
 
-The complete example below creates an ephemeral key pair for a local smoke test. In production, keep the private key in the Control Plane and provision only the public key to Tool Gateway.
+The complete example below creates an ephemeral key pair for a local smoke test. In production, keep the private key in the Control Plane and provision public verification keys to Model Gateway and Tool Gateway only.
 
 ```ts
 import { generateKeyPairSync } from 'node:crypto'
