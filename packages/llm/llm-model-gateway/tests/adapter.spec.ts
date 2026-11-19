@@ -97,6 +97,7 @@ describe('ModelGatewayAdapter', () => {
     ])
 
     const generation = calls[1]
+    if (!generation) throw new Error('Expected generation request')
     expect(generation.init.redirect).toBe('error')
     expect(new Headers(generation.init.headers).get('authorization')).toBe('Bearer dsh1.test.payload.signature')
     expect(new Headers(generation.init.headers).get('user-agent')).toMatch(/^deepseek-harness\//)
