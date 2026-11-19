@@ -10,21 +10,24 @@ DSH Runtime needs a secure way to obtain and refresh short-lived workload tokens
 
 ## Decision
 
-1. Implement Credential Broker as a separate service.
-2. Use a Unix Domain Socket as the production Runtime-to-Broker transport.
-3. Authenticate each Runtime independently at the OS/service boundary; do not trust tenantId or agentId supplied by the caller without server-side verification.
-4. Broker obtains or requests signed workload tokens from the Control Plane; the Ed25519 private key remains exclusively in the Control Plane.
-5. Runtime requests and refreshes tokens through the socket and keeps the active token in memory.
-6. Runtime uses the short-lived token over HTTPS Bearer authentication to call Tool Gateway.
-7. gVisor job sandboxes must not receive the socket or token.
-8. A protected file is allowed only as a local-development fallback, not as the production design.
+1. Implement Credential Broker as a separate, unprivileged service whose only responsibility is short-lived Workload Identity Token acquisition and relay.
+2. Use a Unix Domain Socket as the production Runtime-to-Broker transport, with a separate socket and OS-enforced access boundary per Runtime.
+3. Authenticate each Runtime using OS peer credentials and map the socket to a registered Runtime identity. Never trust caller-supplied tenantId, agentId, or runtimeId.
+4. Authenticate Broker to Control Plane over host-authenticated mTLS. Control Plane validates the active Host/Runtime binding and derives tenantId, agentId, runtimeId, and permitted capabilities from server-side registration and Runtime policy before signing a token.
+5. Keep the Ed25519 private signing key exclusively in Control Plane. Broker never signs, re-signs, broadens, or modifies token claims.
+6. Broker accepts only the fixed service audiences `dsh-model-gateway` and `dsh-tool-gateway`; it does not accept caller-supplied capability sets or arbitrary audiences.
+7. Runtime obtains separate short-lived tokens for Model Gateway and Tool Gateway through the socket, keeps active tokens in memory, and calls each Gateway over HTTPS Bearer authentication with its exact audience.
+8. Credential Broker never stores, retrieves, or serves provider credentials, integration credentials, OAuth refresh tokens, or other business secrets.
+9. gVisor job sandboxes must not receive the socket or workload tokens.
+10. A protected file is allowed only as a local-development fallback, not as the production design.
 
 ## Consequences
 
 - Socket ownership, permissions, peer credentials, and Runtime identity mapping are security-critical.
-- A separate socket or equivalent OS-enforced access boundary is required per Runtime.
-- Unix socket access alone does not establish tenant authorization; Broker and downstream services must verify the Runtime identity and claims.
-- Integration credentials remain server-side and are used by Tool Gateway for a specific authorized operation.
+- Host mTLS authentication and Control Plane validation of the active Host/Runtime binding are security-critical.
+- The Broker audience allowlist is fixed; Control Plane, not Broker or Runtime, determines the capabilities in each signed token.
+- Unix socket access alone does not establish tenant authorization; Model Gateway and Tool Gateway must independently verify the token signature, issuer, exact audience, expiry, and required capabilities.
+- Credential Broker has no access to provider or integration credentials. Model Gateway and Tool Gateway use their respective server-side credential paths for authorized operations.
 
 ## Implementation status
 
