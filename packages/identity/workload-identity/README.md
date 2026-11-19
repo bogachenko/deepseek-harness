@@ -31,7 +31,7 @@ Use this library when the trusted Control Plane must issue a short-lived identit
 
 ### Entry point
 
-The complete example below creates an ephemeral key pair for a local smoke test. In production, keep the private key in the Control Plane and provision public verification keys to Model Gateway and Tool Gateway only.
+The complete example below creates an ephemeral key pair for a local smoke test. In production, keep the private key in the Control Plane and provision public verification keys to the services that verify workload tokens, including Model Gateway and Tool Gateway.
 
 ```ts
 import { generateKeyPairSync } from 'node:crypto'
