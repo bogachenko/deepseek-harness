@@ -81,7 +81,7 @@ Trust boundaries:
 
 **Required controls:**
 - no long-lived integration or provider credentials in DSH Runtime files, environment, prompts, or model-visible tool interfaces;
-- keep the workload-token signing private key exclusively in Control Plane; provision public verification keys to Model Gateway and Tool Gateway only;
+- keep the workload-token signing private key exclusively in Control Plane; provision public verification keys to each service that verifies workload tokens, including Model Gateway and Tool Gateway;
 - Credential Broker handles only short-lived workload-token requests and relay; it never stores, retrieves, or serves provider or integration credentials;
 - authenticate Runtime to Broker with per-Runtime Unix socket peer credentials and authenticate Broker to Control Plane with Host mTLS;
 - issue separate short-lived tokens for the exact Model Gateway and Tool Gateway audiences; Control Plane derives capabilities from server-side Runtime policy;
