@@ -272,6 +272,81 @@ describe('ModelGatewayAdapter', () => {
     }).rejects.toMatchObject({ code: 'MALFORMED_RESPONSE' })
   })
 
+  it('rejects image upload metadata that does not match the uploaded image', async () => {
+    const localImage = {
+      attachmentId: 'sha256:local-only-digest',
+      mediaType: 'image/png',
+      bytes: 3,
+      width: 1,
+      height: 1,
+    } as unknown as ImageAttachmentRef
+    const attachments = {
+      readImage: vi.fn().mockResolvedValue({ ref: localImage, data: Uint8Array.from([1, 2, 3]) }),
+    } as unknown as AttachmentStore
+    const validExpiry = new Date(Date.now() + 60_000).toISOString()
+    const invalidResponses = [
+      {
+        name: 'non-canonical expiry',
+        changes: { expiresAt: validExpiry.replace(/\\.\\d{3}Z$/, 'Z') },
+      },
+      {
+        name: 'expired expiry',
+        changes: { expiresAt: new Date(Date.now() - 60_000).toISOString() },
+      },
+      {
+        name: 'mismatched media type',
+        changes: { contentType: 'image/jpeg' },
+      },
+      {
+        name: 'mismatched byte length',
+        changes: { byteLength: 4 },
+      },
+      {
+        name: 'mismatched dimensions',
+        changes: { width: 2 },
+      },
+    ] as const
+
+    for (const invalid of invalidResponses) {
+      const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.endsWith('/v1/models')) {
+          return new Response(JSON.stringify(catalog), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        }
+        if (url.endsWith('/v1/attachments/images')) {
+          return new Response(JSON.stringify({
+            version: 1,
+            attachmentId: 'img_opaque-123',
+            contentType: 'image/png',
+            byteLength: 3,
+            width: 1,
+            height: 1,
+            expiresAt: validExpiry,
+            ...invalid.changes,
+          }), { status: 201, headers: { 'content-type': 'application/json' } })
+        }
+        return new Response('', { status: 404 })
+      }) as unknown as typeof fetch
+      const adapter = new ModelGatewayAdapter(new Context(), config, {
+        fetch: fetcher,
+        broker: broker(),
+        resolveAttachments: () => attachments,
+      })
+      const prepared = await adapter.prepareCall('model-gateway', 'provider/model:balanced')
+      const imageMessage = {
+        role: 'user',
+        content: [{ type: 'image', attachment: localImage }],
+      } as unknown as RequestMessage
+
+      await expect(async () => {
+        for await (const chunk of prepared.stream(generationOptions([imageMessage]))) void chunk
+      }, invalid.name).rejects.toMatchObject({ code: 'MALFORMED_RESPONSE' })
+    }
+  })
+
   it('fails closed on Gateway authorization errors and never falls back to a provider', async () => {
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
