@@ -39,9 +39,10 @@ Required outcomes:
 | Asset | Primary boundary |
 |---|---|
 | Tenant data | Tenant-aware data services and storage |
-| Integration credentials | Credential Broker |
+| Integration credentials | Tool Gateway and server-side integration-credential storage |
+| Provider credentials | Encrypted Control Plane storage; request-scoped access by Model Gateway |
 | Platform signing keys | Control Plane secret storage |
-| Workload identity | Short-lived scoped identity |
+| Workload identity | Short-lived audience-scoped identity |
 | DSH runtime | Tenant-scoped runtime boundary |
 | Host and container runtime | Host administration boundary |
 | Advanced job | Execution sandbox boundary |
@@ -50,12 +51,15 @@ Required outcomes:
 Trust boundaries:
 1. Internet to API Gateway.
 2. Tenant/user to Control Plane.
-3. Control Plane to DSH Runtime.
-4. DSH Runtime to Tool Gateway.
-5. Tool Gateway to Credential Broker and external integrations.
-6. DSH Runtime to Execution Broker.
-7. Execution job to host, network, and artifact services.
-8. One tenant's services and data to another tenant's services and data.
+3. Control Plane to Credential Broker over host-authenticated mTLS.
+4. Credential Broker to DSH Runtime over the per-Runtime Unix Domain Socket.
+5. DSH Runtime to Model Gateway using the exact audience `dsh-model-gateway`.
+6. DSH Runtime to Tool Gateway using the exact audience `dsh-tool-gateway`.
+7. Model Gateway to Control Plane provider-credential and policy APIs over authenticated TLS.
+8. Tool Gateway to server-side integration-credential storage and external integrations.
+9. DSH Runtime to Execution Broker.
+10. Execution job to host, network, and artifact services.
+11. One tenant's services and data to another tenant's services and data.
 
 ## 4. Main threat scenarios
 
@@ -64,22 +68,27 @@ Trust boundaries:
 **Scenario:** A model changes a tenant identifier in a tool argument, or a compromised runtime requests another tenant's object.
 
 **Required controls:**
-- verify the workload-token signature, issuer, audience, and expiration at the Tool Gateway;
-- derive tenant identity from verified claims, never from request arguments;
+- verify workload-token signature, issuer, exact service-specific audience, expiration, and required capabilities independently at Model Gateway and Tool Gateway;
+- derive tenant, agent, and Runtime identity only from verified claims, never from request arguments;
+- have Control Plane derive token claims and permitted capabilities from the registered Host/Runtime binding and server-side Runtime policy, not from caller-supplied identity or capability fields;
+- have Model Gateway forward the original Runtime token to authenticated Control Plane APIs, where Control Plane independently verifies the token and active binding before returning provider credentials or protected policy data;
 - enforce tenant filters in the service and data-access layers;
-- test direct-object-reference and confused-deputy cases.
+- test wrong-audience, wrong-capability, direct-object-reference, and confused-deputy cases.
 
 ### T2. Credential theft by an agent
 
 **Scenario:** The model invokes shell, reads files, inspects environment variables, or exploits a tool to obtain integration or platform secrets.
 
 **Required controls:**
-- no long-lived integration secrets in DSH files or environment;
-- keep the workload-token signing private key in the Control Plane; runtime and gateway processes receive public keys only;
+- no long-lived integration or provider credentials in DSH Runtime files, environment, prompts, or model-visible tool interfaces;
+- keep the workload-token signing private key exclusively in Control Plane; provision public verification keys to Model Gateway and Tool Gateway only;
+- Credential Broker handles only short-lived workload-token requests and relay; it never stores, retrieves, or serves provider or integration credentials;
+- authenticate Runtime to Broker with per-Runtime Unix socket peer credentials and authenticate Broker to Control Plane with Host mTLS;
+- issue separate short-lived tokens for the exact Model Gateway and Tool Gateway audiences; Control Plane derives capabilities from server-side Runtime policy;
+- have Model Gateway resolve provider credentials from Control Plane over authenticated TLS using its dedicated service identity and the original Runtime token; hold decrypted values in request scope only;
+- have Tool Gateway use integration credentials through server-side credential storage for a specific authorized operation;
 - no host home-directory mounts;
-- Credential Broker keeps secrets server-side;
-- tool operations use credentials internally and return only authorized results;
-- no secrets in prompts, logs, traces, or artifacts.
+- no secrets or bearer tokens in prompts, tool arguments/results, errors, logs, traces, or artifacts.
 
 ### T3. Host compromise through code execution
 
@@ -161,7 +170,10 @@ Trust boundaries:
 ## 6. Release-blocking security tests
 
 - A tenant cannot read, update, or infer another tenant's records or artifacts.
-- A DSH runtime cannot read host credentials, integration credentials, SSH keys, or platform signing keys.
+- A DSH runtime cannot read host credentials, integration credentials, provider credentials, SSH keys, or platform signing keys.
+- Credential Broker cannot access provider or integration credentials and cannot mint tokens or broaden Control-Plane-signed claims.
+- A token issued for Model Gateway is rejected by Tool Gateway, and vice versa; both Gateways reject missing capabilities.
+- Control Plane rejects Broker token requests for unregistered/inactive Host or Runtime identities and derives capabilities from server-side policy.
 - A DSH runtime cannot access Docker/containerd sockets or create host containers.
 - Advanced job cannot read host files or another job's files.
 - Advanced job cannot reach Control Plane, metadata, loopback, or private network destinations by default.
