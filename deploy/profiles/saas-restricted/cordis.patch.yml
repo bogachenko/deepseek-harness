@@ -1,0 +1,38 @@
+# SaaS Restricted overlay for the standalone dsh-sdk-minimal profile.
+#
+# Apply this patch after the sdk-minimal bundle. It removes model-facing
+# local execution, filesystem, working-directory, and MCP-resource tools.
+# This is a capability allowlist baseline, not an OS/container isolation
+# boundary. Production must still run each tenant runtime in its own
+# restricted Linux environment.
+
+- id: session-log-deepseek
+  disabled: true
+
+- id: tool-fs
+  disabled: true
+
+- id: tool-working-directory
+  disabled: true
+
+- id: terminal-bash
+  disabled: true
+
+- id: terminal-pwsh
+  disabled: true
+
+- id: persistent-bash
+  disabled: true
+
+- id: persistent-pwsh
+  disabled: true
+
+- id: mcp-resources
+  disabled: true
+
+# Keep a restrictive policy in case a future trusted extension introduces
+# a sandbox-aware operation. This replaces the whole config block.
+- id: sandbox-policy
+  config:
+    mode: read-only
+    workspaceRoot: !!js process.cwd()
