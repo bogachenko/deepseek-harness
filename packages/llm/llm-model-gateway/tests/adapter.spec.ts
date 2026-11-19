@@ -16,7 +16,7 @@ const config = resolveConfig({
 const catalog = {
   version: 1,
   models: [{
-    id: 'balanced',
+    id: 'provider/model:balanced',
     name: 'Balanced',
     inputModalities: ['text', 'image'],
     contextWindow: 128_000,
@@ -49,7 +49,7 @@ function broker() {
 function generationOptions(messages: RequestMessage[]): GenerateOptions {
   return {
     provider: 'model-gateway',
-    model: 'balanced',
+    model: 'provider/model:balanced',
     messages,
   }
 }
@@ -76,7 +76,7 @@ describe('ModelGatewayAdapter', () => {
       resolveAttachments: () => undefined,
     })
 
-    const prepared = await adapter.prepareCall('model-gateway', 'balanced')
+    const prepared = await adapter.prepareCall('model-gateway', 'provider/model:balanced')
     expect(prepared.model.context).toEqual({ contextWindow: 128_000 })
     expect(prepared.model.defaultMaxTokens).toBe(8_192)
     expect(prepared.model.inputModalities).toEqual(['text', 'image'])
@@ -101,7 +101,7 @@ describe('ModelGatewayAdapter', () => {
     expect(new Headers(generation.init.headers).get('authorization')).toBe('Bearer dsh1.test.payload.signature')
     expect(new Headers(generation.init.headers).get('user-agent')).toMatch(/^deepseek-harness\//)
     const body = JSON.parse(String(generation.init.body)) as Record<string, unknown>
-    expect(body.model).toBe('balanced')
+    expect(body.model).toBe('provider/model:balanced')
     expect(body).not.toHaveProperty('provider')
     expect(body).not.toHaveProperty('credential')
     expect(body.messages).toEqual([{ role: 'user', content: [{ type: 'text', text: 'hello' }] }])
@@ -122,7 +122,7 @@ describe('ModelGatewayAdapter', () => {
       broker: broker(),
       resolveAttachments: () => undefined,
     })
-    const prepared = await adapter.prepareCall('model-gateway', 'balanced')
+    const prepared = await adapter.prepareCall('model-gateway', 'provider/model:balanced')
     const tool = {
       name: 'search',
       description: 'Search the approved index',
@@ -205,7 +205,7 @@ describe('ModelGatewayAdapter', () => {
       broker: broker(),
       resolveAttachments: () => attachments,
     })
-    const prepared = await adapter.prepareCall('model-gateway', 'balanced')
+    const prepared = await adapter.prepareCall('model-gateway', 'provider/model:balanced')
     const imageMessage = {
       role: 'user',
       content: [{ type: 'image', attachment: localImage }],
@@ -262,7 +262,7 @@ describe('ModelGatewayAdapter', () => {
       broker: broker(),
       resolveAttachments: () => attachments,
     })
-    const prepared = await adapter.prepareCall('model-gateway', 'balanced')
+    const prepared = await adapter.prepareCall('model-gateway', 'provider/model:balanced')
     const imageMessage = {
       role: 'user',
       content: [{ type: 'image', attachment: localImage }],
@@ -294,7 +294,7 @@ describe('ModelGatewayAdapter', () => {
       broker: tokenBroker,
       resolveAttachments: () => undefined,
     })
-    const prepared = await adapter.prepareCall('model-gateway', 'balanced')
+    const prepared = await adapter.prepareCall('model-gateway', 'provider/model:balanced')
 
     await expect(async () => {
       for await (const chunk of prepared.stream(generationOptions([

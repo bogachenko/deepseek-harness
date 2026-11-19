@@ -473,12 +473,17 @@ function parseCatalog(value: unknown): readonly ModelDescriptor[] {
     if (
       !isRecord(item) ||
       typeof item.id !== 'string' ||
-      !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(item.id) ||
+      item.id.length === 0 ||
+      item.id.length > 256 ||
+      item.id.trim() !== item.id ||
+      /[\u0000-\u001f\u007f]/.test(item.id) ||
       typeof item.name !== 'string' ||
       item.name.length === 0 ||
       item.name.length > 256 ||
       !Array.isArray(item.inputModalities) ||
+      item.inputModalities.length === 0 ||
       item.inputModalities.some(modality => modality !== 'text' && modality !== 'image') ||
+      new Set(item.inputModalities).size !== item.inputModalities.length ||
       !isPositiveSafeInteger(item.contextWindow) ||
       !isPositiveSafeInteger(item.maxOutputTokens) ||
       !Array.isArray(item.reasoningEfforts) ||
