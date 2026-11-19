@@ -23,7 +23,7 @@ async function collect(chunks: string[]) {
 describe('Model Gateway SSE decoder', () => {
   it('decodes split CRLF frames and maps DSH content blocks', async () => {
     const start = 'data: {"version":1,"type":"block-start","index":0,"blockType":"text"}\r'
-    const rest = '\ndata: {"version":1,"type":"block-end","index":0,"block":{"type":"text","text":"ok"}}\r\n\r\n'
+    const rest = '\n\r\ndata: {"version":1,"type":"block-end","index":0,"block":{"type":"text","text":"ok"}}\r\n\r\n'
       + 'data: {"version":1,"type":"finish","reason":{"kind":"stop"}}\r\n\r\n'
     const chunks = await collect([start, rest])
     expect(chunks.map(chunk => chunk.type)).toEqual(['block-start', 'block-end', 'finish'])
