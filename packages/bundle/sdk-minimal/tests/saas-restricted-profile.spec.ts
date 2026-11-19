@@ -7,6 +7,7 @@ import { parseEntryYaml } from '@deepseek-ai/cordis-plugin-include'
 
 interface Row {
   id?: string
+  name?: string
   disabled?: boolean
   config?: Record<string, unknown>
   insert?: Row[]
@@ -29,6 +30,14 @@ describe('SaaS Restricted profile overlay', () => {
     const effective = new Map(base)
 
     for (const patch of overlay) {
+      if (patch.insert !== undefined) {
+        for (const inserted of patch.insert) {
+          if (inserted.id === undefined) throw new Error('inserted overlay rows must have an id')
+          if (effective.has(inserted.id)) throw new Error('overlay duplicates sdk-minimal row: ' + inserted.id)
+          effective.set(inserted.id, inserted)
+        }
+        continue
+      }
       if (patch.id === undefined) throw new Error('overlay entries must target an existing row')
       const previous = effective.get(patch.id)
       if (previous === undefined) throw new Error(`overlay targets missing sdk-minimal row: ${patch.id}`)
@@ -48,6 +57,12 @@ describe('SaaS Restricted profile overlay', () => {
       expect(effective.get(id)?.disabled, `${id} must be disabled`).toBe(true)
     }
 
+    expect(effective.get('llm-deepseek')?.disabled).toBe(true)
+    expect(effective.get('llm-model-gateway')?.name).toBe('@deepseek-ai/dsh-llm-model-gateway')
+    expect(Object.keys(effective.get('llm-model-gateway')?.config ?? {}).sort()).toEqual([
+      'baseURL',
+      'brokerSocketPath',
+    ])
     expect(effective.get('sandbox-policy')?.config).toMatchObject({ mode: 'read-only' })
     expect(effective.get('sdk-jsonrpc-server')?.disabled).not.toBe(true)
     expect(effective.get('agent-loop')?.disabled).not.toBe(true)
@@ -72,7 +87,9 @@ describe('SaaS Restricted profile overlay', () => {
 
   it('contains only the reviewed overlay rows', () => {
     const overlay = parseEntryYaml(readFileSync(overlayPath, 'utf8')) as Row[]
-    expect(overlay.map(row => row.id)).toEqual([
+    expect(overlay.flatMap(row => row.insert === undefined
+      ? [row.id]
+      : row.insert.map(inserted => 'insert:' + inserted.id))).toEqual([
       'session-log-deepseek',
       'tool-fs',
       'tool-working-directory',
@@ -82,6 +99,8 @@ describe('SaaS Restricted profile overlay', () => {
       'persistent-pwsh',
       'mcp-resources',
       'sandbox-policy',
+      'llm-deepseek',
+      'insert:llm-model-gateway',
     ])
   })
 })
