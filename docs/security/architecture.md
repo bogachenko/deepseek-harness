@@ -16,40 +16,44 @@ English | [中文](architecture.zh.md)
 
 ## 2. High-level architecture
 
-```text
-                         CLIENTS
-                            |
-                         HTTPS
-                            |
-                       API GATEWAY
-                            |
-                    AUTHENTICATION / RBAC
-                            |
-                       CONTROL PLANE
-                 +----------+-----------+
-                 |          |           |
-             Tenant      Agent       Policy
-             Manager     Manager     Engine
-                 |          |
-                 |      DSH Runtime
-                 |      (tenant-scoped)
-                 |          |
-          +------+----------+----------------+
-          |                                 |
-     MODEL GATEWAY                    TOOL GATEWAY                     EXECUTION BROKER
-          |                                |                                 |
-   Provider Adapters                Credential Broker                Sandbox Service
-          |                                |                                 |
-   Model Providers                  Business APIs                 Isolated Job Runtime
-                                            |
-                                      Result Collector
-                                            |
-                                      Artifact Storage
+```mermaid
+flowchart TB
+    Clients["Clients"] -->|HTTPS| APIGateway["API Gateway"]
+    APIGateway --> Auth["Authentication / RBAC"]
+    Auth --> CP
+
+    subgraph ControlPlane["Control Plane"]
+        CP["Control Plane APIs"]
+        Policy["Tenant / Agent / Runtime policy"]
+        Issuer["Workload-token issuer"]
+        ProviderStore["Encrypted provider-credential store"]
+        CP --> Policy
+        CP --> Issuer
+        CP --> ProviderStore
+    end
+
+    subgraph RuntimeHost["Runtime host"]
+        Runtime["DSH Runtime"]
+        Broker["Credential Broker"]
+        Runtime <-->|Per-Runtime Unix Domain Socket| Broker
+    end
+
+    Broker -->|Host mTLS: token request / refresh| CP
+
+    Runtime -->|HTTPS; aud=dsh-model-gateway| ModelGateway["Model Gateway"]
+    ModelGateway <-->|TLS 1.3; service authentication + original Runtime token| CP
+    ModelGateway -->|Request-scoped provider credential| Providers["Model providers"]
+
+    Runtime -->|HTTPS; aud=dsh-tool-gateway| ToolGateway["Tool Gateway"]
+    ToolGateway -->|Authorized operation; credentials remain server-side| BusinessAPIs["Business APIs"]
+
+    Runtime --> ExecutionBroker["Execution Broker"]
+    ExecutionBroker --> Sandbox["Isolated execution job"]
 ```
 
-The Control Plane owns tenant identity, authentication, lifecycle management, policy decisions, and audit metadata. DSH runs the agent loop and coordinates model/tool interactions. Production model traffic goes through the provider-independent Model Gateway; business integrations go through the Tool Gateway. The Execution Plane runs untrusted code outside the DSH process.
+The Control Plane owns tenant identity, authentication, lifecycle management, Runtime policy, workload-token signing, encrypted provider-credential persistence, and audit metadata. It is the only service that connects directly to PostgreSQL. DSH runs the agent loop and coordinates model/tool interactions. Production model traffic goes through the provider-independent Model Gateway; business integrations go through the Tool Gateway. Credential Broker only obtains and relays short-lived workload tokens. The Execution Plane runs untrusted code outside the DSH process.
 
-Workload-token issuance and verification are implemented by [dsh-workload-identity](../../packages/identity/workload-identity/README.md). Only the Control Plane receives the private signing key; Tool Gateway receives public verification keys; DSH Runtime receives only the short-lived bearer token.
+Workload-token issuance and verification are implemented by [dsh-workload-identity](../../packages/identity/workload-identity/README.md). Only the Control Plane holds the Ed25519 private signing key. Model Gateway and Tool Gateway receive public verification keys and independently verify tokens for their exact audiences. DSH Runtime receives short-lived bearer tokens through Credential Broker; it never receives provider or integration credentials.
 
 ## 3. Trust boundaries
 
@@ -59,7 +63,10 @@ Responsibilities:
 - authenticate users and services;
 - create and manage tenants and agents;
 - issue short-lived, narrowly scoped workload identities;
-- evaluate policies;
+- evaluate Runtime policy and derive the capabilities granted to each Runtime and service audience;
+- issue short-lived audience-scoped workload tokens after validating the Host/Runtime binding;
+- keep the workload-token signing private key and encrypted provider-credential store;
+- expose provider-credential resolution only to authenticated Model Gateway instances;
 - schedule DSH runtimes and execution jobs;
 - record security-relevant audit events.
 
@@ -79,28 +86,47 @@ The DSH runtime:
 
 DSH's built-in filesystem and shell sandboxing must not be treated as the tenant isolation boundary.
 
-### 3.3 Tool Gateway and Credential Broker
+### 3.3 Tool Gateway
 
 All business integrations go through the Tool Gateway.
 
 The Tool Gateway:
-- authenticates the calling workload;
-- derives tenant and agent identity from authenticated context, not from model-supplied arguments;
+- authenticates DSH Runtime using a short-lived workload token with exact audience `dsh-tool-gateway`;
+- verifies the token signature, issuer, audience, expiration, and required capabilities;
+- derives tenant, agent, and Runtime identity only from verified claims, never from model-supplied arguments;
 - checks capability and object-level permissions on every operation;
 - applies tenant scoping to every data access;
-- validates inputs and outputs;
-- records security-relevant actions.
+- resolves integration credentials through a server-side integration-credential service and uses them only for the specific authorized operation;
+- never returns raw integration credentials to DSH Runtime, the Agent Loop, or the model;
+- validates inputs and outputs and records security-relevant actions.
 
-The Credential Broker retrieves integration credentials server-side. Raw credentials must never be returned to the model or mounted into the agent runtime. A tool implementation uses a credential only for the specific authorized operation.
+### 3.4 Credential Broker
 
-### 3.4 Model Gateway
+Credential Broker is a separate, unprivileged service whose only responsibility is obtaining and relaying short-lived Workload Identity Tokens.
+
+The Credential Broker:
+- exposes a separate Unix Domain Socket for each Runtime;
+- authenticates the connecting Runtime using OS peer credentials and maps the socket to a registered Runtime identity;
+- accepts only the fixed service audiences `dsh-model-gateway` and `dsh-tool-gateway`;
+- authenticates to Control Plane over host-authenticated mTLS;
+- obtains tokens only after Control Plane validates the active Host/Runtime binding and derives tenant, agent, Runtime identity, and permitted capabilities from server-side policy;
+- relays Control-Plane-signed tokens unchanged and cannot sign, re-sign, broaden, or otherwise modify their claims;
+- never holds the Ed25519 private signing key;
+- never stores, retrieves, or serves provider credentials, integration credentials, OAuth refresh tokens, or other business secrets.
+
+DSH Runtime keeps active audience-specific tokens in memory only. Execution sandboxes must not receive the Broker socket or workload tokens. Unix socket access alone does not replace downstream token verification and authorization.
+
+### 3.5 Model Gateway
 
 The Model Gateway is the only production SaaS egress path from DSH Runtime to model providers. It is provider-independent and is not limited to DeepSeek.
 
 Responsibilities:
-- authenticate DSH Runtime using its short-lived workload identity and derive tenant/runtime identity from verified claims;
+- authenticate DSH Runtime using a short-lived workload token with exact audience `dsh-model-gateway` and required capability `model:invoke`;
+- verify the token signature, issuer, audience, expiration, and required capabilities, and derive tenant/agent/Runtime identity only from verified claims;
 - enforce tenant-scoped provider/model allowlists, quotas, rate limits, and usage accounting;
-- own provider API keys, OAuth refresh tokens, and equivalent provider credentials;
+- resolve provider credentials through authenticated, versioned Control Plane APIs; Control Plane stores provider credentials encrypted at rest;
+- authenticate to Control Plane using its dedicated Model Gateway service-authentication token and forward the original Runtime workload token for independent Control Plane verification and active-binding checks;
+- use decrypted provider credentials in request scope only; never persist them in Gateway state or expose them to Runtime;
 - translate a stable provider-neutral request/response/streaming contract to provider-specific protocols;
 - route to approved hosted or self-hosted model endpoints;
 - normalize provider errors and metadata without exposing credentials or internal secrets;
@@ -110,7 +136,7 @@ The adapter boundary must support multiple vendors and compatible endpoints with
 
 Security requirements:
 - DSH Runtime receives no long-lived provider API key or provider OAuth refresh token.
-- Model Gateway accepts only authenticated Runtime requests and never trusts tenant, runtime, or agent identifiers supplied as ordinary model/request fields.
+- Model Gateway accepts only authenticated Runtime requests and never trusts tenant, Runtime, or agent identifiers supplied as ordinary model/request fields.
 - Provider credentials never appear in Runtime-visible responses, model output, tool calls, errors, logs, traces, or artifacts.
 - Model Gateway does not execute business tools; Tool Gateway remains the business-operation boundary.
 - Direct provider access from production Runtime is denied by network policy. No fallback to direct provider API calls is permitted.
@@ -118,7 +144,7 @@ Security requirements:
 
 Standalone development/SDK profiles may use direct provider adapters, but they are not the production SaaS security boundary.
 
-### 3.5 Execution Plane
+### 3.6 Execution Plane
 
 Advanced agents may request code execution through a narrow `run_code` capability.
 
@@ -233,7 +259,7 @@ The exact Cordis bundle and capability IDs must be verified against the pinned D
 
 1. Model output cannot grant itself permissions.
 2. Tenant and agent identity come from authenticated server-side context.
-3. DSH cannot read long-lived integration credentials or model-provider credentials; production model traffic passes through Model Gateway.
+3. DSH cannot read long-lived integration credentials or model-provider credentials; Credential Broker handles only short-lived workload-token relay, production model traffic passes through Model Gateway, and business integrations pass through Tool Gateway.
 4. DSH cannot control the host container runtime.
 5. Untrusted code never executes in the DSH process.
 6. Advanced jobs receive no ambient secrets or host identity.
