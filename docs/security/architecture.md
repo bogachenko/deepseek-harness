@@ -1,6 +1,5 @@
 # Security Architecture
 
-English | [中文](architecture.zh.md)
 
 **Status:** Working baseline  
 **Scope:** Linux-hosted, provider-independent SaaS platform built around DeepSeek Harness (DSH).
