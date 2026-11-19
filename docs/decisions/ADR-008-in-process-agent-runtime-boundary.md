@@ -30,7 +30,7 @@ An in-process Agent Loop is not a separate Linux process or OS security principa
 - This choice is simpler and preserves DSH's current execution model.
 - OS-level UID separation still isolates the DSH Runtime from other tenant Runtime processes and from external execution jobs, but it does not separate the in-process Agent Loop from its Runtime.
 - Prompt injection must not be able to invoke arbitrary filesystem, shell, process, or network capabilities. Only explicitly registered tools are exposed.
-- Credential safety depends on keeping secret-bearing operations in trusted Runtime code and never exposing secret values through Agent-visible interfaces.
+- Workload-token handling stays inside trusted Runtime code paths and bearer tokens are never exposed through Agent-visible interfaces. Provider and integration credential operations remain in their server-side Gateways.
 - Any vulnerability allowing arbitrary code execution in the Runtime process can expose its in-memory short-lived workload tokens and data accessible to that process. This is an accepted residual risk of the selected simpler architecture and must be mitigated through minimal dependencies, restricted plugins, process hardening, patching, and monitoring. Provider and integration credentials remain outside the Runtime.
 - Negative tests must verify that tool schemas/results/logs/prompts never contain bearer tokens or provider/integration credentials; Model Gateway and Tool Gateway accept only their own exact-audience tokens and required capabilities; Runtime obtains tokens only through its authenticated per-Runtime Broker socket; arbitrary shell/code execution is unavailable in Restricted; Advanced jobs cannot access Runtime sockets or tokens.
 
