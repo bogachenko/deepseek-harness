@@ -54,7 +54,7 @@ class SingleAgentInitiatorScope implements AgentInitiatorScope {
 
     try {
       void Promise.prototype.then.call(
-        result,
+        result as Promise<unknown>,
         () => { this.release(agent) },
         () => { this.release(agent) },
       )
