@@ -3,15 +3,15 @@
 - **Дата:** 2026-11-22
 - **Ветка:** `telegram-serverless-adaptation`
 - **База аудита:** `master` форка, синхронизированный с upstream на момент начала работ
-- **Статус:** первичный аудит исходников; runtime-проверка на Telegram Serverless ещё не проводилась
+- **Статус:** первичный аудит исходников и V8-compatible single-Agent scope implementation; runtime-проверка на Telegram Serverless ещё не проводилась
 
 ## 1. Вывод
 
 Полностью запустить стандартную Node.js-сборку DSH в Telegram Serverless нельзя. Но базовые части агентной архитектуры выглядят переносимыми: Cordis core, Session event model, Tool Registry и provider-neutral LLM API не требуют локального сервера по своей концепции.
 
-Для работающего Serverless runtime потребуются четыре адаптации:
+Для работающего Serverless runtime нужны четыре адаптации:
 
-1. убрать ambient async context из `dsh-agent` либо заменить его явным контекстом инициатора;
+1. выбрать V8-compatible initiator scope с одним активным Agent на invocation — базовая реализация добавлена в форк;
 2. отделить Agent Loop от Node.js UUID API;
 3. подключить LLM через Telegram SDK `sdk/fetch`, не через обычный Node/global transport;
 4. реализовать собственный `SessionPersistence` поверх Telegram SQLite SDK.
@@ -55,29 +55,20 @@ DSH workspace не может быть загружен как набор npm-п
 
 ### 3.2 Подтверждённые несовместимости
 
-#### `@deepseek-ai/dsh-agent`
+#### `@deepseek-ai/dsh-agent` и initiator scope
 
-Файл: `packages/core/agent/src/index.ts`
+В исходном `dsh-agent` прямые импорты Node built-ins удалены. `AgentRegistry` делегирует ambient attribution через `AgentInitiatorScopeFactory`; scope создаётся отдельно для каждого lifecycle экземпляра AgentRegistry.
 
-Прямые Node imports:
+Добавлены два provider:
 
-- `node:async_hooks` — `AsyncLocalStorage`;
-- `node:util/types` — `isPromise`.
+- `@deepseek-ai/dsh-agent-initiator-node` — Node `AsyncLocalStorage` implementation, сохраняющая независимую идентичность для нескольких параллельных Agent. Стандартные Node bundles `dsh-base` и `dsh-sdk-minimal` явно подключают этот provider.
+- `@deepseek-ai/dsh-agent-initiator-single` — V8-compatible provider без Node imports. Он также является fallback внутри `dsh-agent`, когда отдельный provider не смонтирован.
 
-`AsyncLocalStorage` используется для `withInitiator()`, `withoutInitiator()`, `currentInitiator()` и `requireInitiator()`. Контекст инициатора должен сохраняться через асинхронные продолжения; одновременно отслеживается завершение активных initiator runs при disposal.
+Для Telegram Serverless подтверждён продуктовый инвариант: **один Cordis root и один активный Agent на invocation**. Single provider разрешает вложенные и пересекающиеся async boundaries только для того же Agent. Он отклоняет запуск второго Agent и `withoutInitiator()`, пока активен первый Agent. Agentless direct operations разрешены до/после Agent run, но не параллельно с ним.
 
-Это **главный blocker Agent Core**. Простая замена на глобальную переменную или стек не сохранит корректность при конкурентных async-задачах одного invocation. Требуется отдельный дизайн явной передачи инициатора через execution context/Agent scope либо другой механизм, который будет подтверждён тестами. `isPromise` — меньшая Node-specific зависимость, но замена тоже должна сохранить контракт точного Promise-return поведения.
+Это сознательное ограничение single-invocation runtime, а не замена tenant authorization. В Serverless composition нельзя подключать background schedulers, subagent drivers или queue pumps, запускающие отдельные ambient boundaries внутри того же invocation. Request owner должен дождаться завершения Agent driver и foreground work до disposal Cordis root.
 
-##### Что это означает для Serverless-модели
-
-В исходном DSH `AgentLoop` оборачивает полный lifetime driver в `ctx.agents.withInitiator(agent, ...)`. Потребители ambient initiator включают goal tools, web-search/web API integrations и browser-use plugins; фоновые schedule/goal drivers используют `withoutInitiator()`.
-
-Для Telegram Serverless возможны две модели:
-
-1. **Один Cordis root и один активный Agent на invocation.** Каждый Telegram Update или Mini App endpoint создаёт собственный runtime, восстанавливает только выбранную сессию/агента, выполняет один запрос и закрывает runtime. Разные пользователи и разные агенты выполняются в разных invocation. Это позволяет реализовать ограниченный invocation-local initiator без межагентной конкуренции. Плагины, запускающие независимую фоновую работу через `withoutInitiator()`, не входят в первый runtime.
-2. **Несколько активных Agent в одном invocation.** Тогда ambient initiator нельзя корректно заменить простым полем/глобальной переменной. Нужна более широкая миграция plugin APIs на явный Agent/ExecutionContext и обновление всех потребителей `currentInitiator()`/`requireInitiator()`.
-
-Для первой версии платформы вариант 1 выглядит естественным: Serverless invocation обрабатывает один конкретный update/request, а список пользовательских агентов — это выбор агента между запросами, не одновременное выполнение всех агентов в одном runtime. Это пока предложение, требующее подтверждения продуктового инварианта.
+Regression tests добавлены для single-Agent scope; полный Node provider продолжает обслуживать стандартные DSH compositions.
 
 #### `@deepseek-ai/dsh-agent-loop`
 
@@ -196,7 +187,7 @@ Cordis core можно оставить основой plugin lifecycle. Но ru
 
 1. **Runtime smoke test:** проверить global Web Crypto, AbortController/AbortSignal, structuredClone, Promise.withResolvers, async iterators, TextEncoder/Decoder и streaming `sdk/fetch`.
 2. **Bundle spike:** собрать минимальный Cordis + Session + Tools + LLM core в deployable `tgcloud/lib/*.js`, оставив SDK imports external.
-3. **Agent initiator refactor:** устранить `AsyncLocalStorage` без потери изоляции параллельных async-операций; добавить regression tests.
+3. **Agent initiator scope:** выполнено — Node-specific `AsyncLocalStorage` вынесен в отдельный provider, а V8-compatible single-Agent provider добавлен с regression tests. Требуется runtime smoke test на Telegram.
 4. **Agent Loop ID seam:** заменить Node crypto на browser-safe helper или инъецируемый ID provider.
 5. **LLM adapter:** реализовать адаптер через `sdk/fetch`; отдельно решить provider endpoint и модель credentials.
 6. **SQLite spike:** подтвердить atomicity/concurrency/durability, затем реализовать Telegram persistence provider.
