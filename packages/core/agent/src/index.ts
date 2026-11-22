@@ -397,7 +397,7 @@ export class AgentRegistry extends Service {
     })
     ctx.effect(function* (this: AgentRegistry) {
       yield () => this.initiatorScope().dispose()
-      yield () => { this.initiators.close() }
+      yield () => { this.initiatorScope().close() }
     }.bind(this), 'agents.initiatorLifecycle()')
     // Archive admission: the Workspace registry asks what still runs for a
     // Session before hiding it; a running turn answers here, for every Agent.
@@ -428,7 +428,6 @@ export class AgentRegistry extends Service {
    * @throws when this service instance has been disposed.
    */
   currentInitiator(): Agent | undefined {
-    this.assertInitiatorsReadable()
     return this.initiatorScope().current()
   }
 
@@ -477,7 +476,7 @@ export class AgentRegistry extends Service {
    * @throws when the initiator scope is closing/disposed, or when `operation` throws.
    */
   withoutInitiator<T>(operation: () => T): T {
-    return this.initiators.run(undefined, operation)
+    return this.initiatorScope().run(undefined, operation)
   }
 
   /**
