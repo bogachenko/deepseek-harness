@@ -17,7 +17,7 @@
 | `agent-loop/` | 实现公开 `Agent` 约定的具体 driver（`ctx.agentLoop`） | 本页 |
 | `scope/` | 注册表与循环用于构建按 agent 作用域的注册原语 | [scope.md](scope.zh.md) |
 
-`scope/` 是这里唯一的非服务包：一个零依赖库（`createScope`/`scopeOf`/`scopeTarget`），在模块图中位于 `session/` 与 `system-prompt/` 之下，正是为了让它们消费它而不形成环。`agent-loop` 是公开 `Agent` 约定的唯一具体实现，放在这里因为它是 harness 的默认产品循环；它在 `ctx.agents.withInitiator()` 内运行每个 driver。发起者传播由 `AgentInitiatorScopeFactory` 选择：Node.js provider 支持彼此隔离的多个 Agent，V8 默认 provider 和 `dsh-agent-initiator-single` 则限制为每次 invocation 一个活动 Agent。扩展插件依赖 `agent`——包括需要发起 Agent 时——而绝不直接依赖 `agent-loop`，因此循环保持可替换。[`dsh-base`](../../packages/bundle/base/README.zh.md) 是默认产品组合，[`dsh-sdk-minimal`](../../packages/bundle/sdk-minimal/README.zh.md) 则声明一棵更小的独立配置树。
+`scope/` 是这里唯一的非服务包：一个零依赖库（`createScope`/`scopeOf`/`scopeTarget`），在模块图中位于 `session/` 与 `system-prompt/` 之下，正是为了让它们消费它而不形成环。`agent-loop` 是公开 `Agent` 约定的唯一具体实现，放在这里因为它是 harness 的默认产品循环；它在 `ctx.agents.withInitiator()` 内运行每个 driver。扩展插件依赖 `agent`——包括需要发起 Agent 时——而绝不直接依赖 `agent-loop`，因此循环保持可替换。[`dsh-base`](../../packages/bundle/base/README.zh.md) 是默认产品组合，[`dsh-sdk-minimal`](../../packages/bundle/sdk-minimal/README.zh.md) 则声明一棵更小的独立配置树。
 
 <a id="creation-and-ownership"></a>
 
@@ -695,9 +695,9 @@ Source: [`packages/preset/agent-preset-registry/src/index.ts`](../../packages/pr
 
 ### `ctx.agents` — `AgentRegistry`
 
-Agent 服务（`ctx.agents`）跟踪实时 Agent，并将进程内归因委托给配置的 `AgentInitiatorScopeFactory`。`dsh-agent-initiator-node` 提供彼此独立的 Node.js 异步作用域；V8 兼容的默认策略与 `dsh-agent-initiator-single` 则将每次 invocation 限制为一个活动 Agent。Agent *创建* 由实现 AgentFactory 的插件（`@deepseek-ai/dsh-agent-loop`）提供，并通过 `setFactory` 注册。
+Agent service (`ctx.agents`): tracks live agents and carries the initiating Agent through one process-local asynchronous driver chain. Agent *creation* is provided by whichever plugin implements the AgentFactory (`@deepseek-ai/dsh-agent-loop`), registered via setFactory.
 
-发起者方法仅用于同一进程内的因果归因。环境中的身份既不是存活证明，也不是授权；subject 和 owner 仍需显式传递，worker、进程、持久化及 wire 边界上的身份也同样如此。各 provider 会在 teardown 时排空已返回的 Promise 边界。Single-Agent provider 仅允许同一 Agent 的嵌套/重叠边界；当一个 Agent 处于活动状态时，它会拒绝另一个不同的 Agent 或无 Agent 边界。
+Initiator methods provide same-process causal attribution only. Ambient presence is neither liveness proof nor authorization; subjects and owners remain explicit, as does identity at worker, process, persistence, and wire boundaries. Returned Promise boundaries drain during teardown, except a nested lineage that starts an owning-fiber unload is excluded from its own drain.
 
 ```ts cordis-catalog
 /**
