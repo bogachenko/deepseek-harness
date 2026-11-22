@@ -1,39 +1,28 @@
 ---
-description: "Node.js AsyncLocalStorage provider for DSH Agent attribution when multiple agents or agentless background work share one process."
+description: "Node.js AsyncLocalStorage provider for DSH Agent attribution across concurrent agents."
 kind: "package-reference"
 ---
 
 # @deepseek-ai/dsh-agent-initiator-node
 
+English | [中文](README.zh.md)
+
 ## Summary
 
-Provide the Node.js implementation of the Agent initiator scope. It uses `AsyncLocalStorage` to preserve each exact Agent across independent overlapping asynchronous driver chains, nested boundaries, and explicit `withoutInitiator()` boundaries. The standard `dsh-base` and `dsh-sdk-minimal` bundles mount this provider.
+This package supplies the Node.js initiator scope for DSH. `AsyncLocalStorage` keeps each Agent identity isolated across overlapping async driver chains. The standard `dsh-base` and `dsh-sdk-minimal` bundles select this provider.
 
 ## Use this package
 
-Mount it in Node.js compositions before Agent execution:
-
-```yaml
-- name: '@deepseek-ai/dsh-agent-initiator-node'
-- name: '@deepseek-ai/dsh-agent'
-```
-
-The provider publishes `agentInitiatorScopeFactory`; `dsh-agent` creates one scope instance for each AgentRegistry lifecycle. Applications should normally consume it through `ctx.agents`, not instantiate the scope directly.
+Mount this provider in Node.js compositions before Agent execution. It publishes `agentInitiatorScopeFactory`; `dsh-agent` creates a fresh scope for each AgentRegistry lifecycle. Application code should use `ctx.agents` rather than instantiate the scope directly.
 
 ## Runtime contract
 
-- Distinct Agents can execute concurrently without sharing ambient identity.
-- Nested Agent boundaries restore the parent after synchronous return, rejection, or Promise settlement.
-- `withoutInitiator()` hides inherited attribution for shared timers, queues, and background services.
-- Teardown rejects new boundaries and drains returned Promise lifetimes before disabling async storage.
-- Ambient identity is attribution only, never authorization; worker, persistence, HTTP, and wire boundaries still carry explicit identity.
+- Distinct Agents may run concurrently without sharing ambient identity.
+- Nested boundaries restore the parent after synchronous return or Promise settlement.
+- `withoutInitiator()` hides inherited attribution for shared timers and background work.
+- Teardown rejects new boundaries and drains returned Promise lifetimes.
+- Ambient identity is attribution, not authorization; carry explicit identity across worker, persistence, HTTP, and wire boundaries.
 
 ## Known limitations
 
-This package imports Node.js built-ins and must not be included in Telegram Serverless or another runtime without Node.js `async_hooks` and `util/types`. Use `@deepseek-ai/dsh-agent-initiator-single` for an isolated V8 invocation that owns one active Agent.
-
-## Source map
-
-| File | Role |
-|---|---|
-| `src/index.ts` | AsyncLocalStorage-backed scope factory and Cordis plugin |
+This provider imports Node.js built-ins and must not be included in Telegram Serverless or another runtime without `node:async_hooks` and `node:util/types`. Use the single-Agent provider for an isolated V8 invocation.
