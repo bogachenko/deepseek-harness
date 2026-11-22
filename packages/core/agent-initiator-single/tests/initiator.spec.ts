@@ -10,15 +10,24 @@ function agent(id: string): Agent {
   return { id: brandString<SessionId>(id) } as Agent
 }
 
-async function harness(): Promise<{ service: AgentRegistry; dispose: () => Promise<void> }> {
+async function harness(useExplicitProvider = true): Promise<{ service: AgentRegistry; dispose: () => Promise<void> }> {
   const ctx = new Context()
   await ctx.plugin(SessionProjectionRegistry)
-  await ctx.plugin(SingleAgentInitiator)
+  if (useExplicitProvider) await ctx.plugin(SingleAgentInitiator)
   await ctx.plugin(AgentRegistry)
   return { service: ctx.agents, dispose: () => ctx.fiber.dispose() }
 }
 
 describe('single-Agent invocation scope', () => {
+  it('uses the V8-compatible default when no provider is mounted', async () => {
+    const { service, dispose } = await harness(false)
+    const owner = agent('default-owner')
+    const result = service.withInitiator(owner, () => service.requireInitiator())
+    expect(result).toBe(owner)
+    expect(service.currentInitiator()).toBeUndefined()
+    await dispose()
+  })
+
   it('preserves the exact Agent across nested and overlapping boundaries', async () => {
     const { service, dispose } = await harness()
     const owner = agent('owner')
