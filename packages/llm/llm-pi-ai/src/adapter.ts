@@ -108,6 +108,8 @@ export interface PiAiAdapterOptions {
    * every request no matter how often the human signed in.
    */
   auth: PiAiAuthInjection
+  /** Optional request transport supplied by the runtime; omission keeps pi-ai's global fetch. */
+  fetch?: typeof globalThis.fetch
   /**
    * Synchronously prepare this call's headers before SDK dispatch. The input
    * contains a fresh copy of profile headers; attribution is enforced afterward.
@@ -151,10 +153,12 @@ function profileOptions(
   profile: ResolvedPiAiProviderProfile,
   reasoning: ModelThinkingLevel | undefined,
   apiKey: string | undefined,
+  fetch?: typeof globalThis.fetch,
 ): SimpleStreamOptions {
   const enabledReasoning: ThinkingLevel | undefined = reasoning === 'off' ? undefined : reasoning
   return {
     ...apiKey === undefined ? {} : { apiKey },
+    ...fetch === undefined ? {} : { fetch },
     ...enabledReasoning === undefined ? {} : { reasoning: enabledReasoning },
     ...profile.thinkingBudgets === undefined ? {} : { thinkingBudgets: profile.thinkingBudgets },
     ...profile.cacheRetention === undefined ? {} : { cacheRetention: profile.cacheRetention },
@@ -471,7 +475,7 @@ export class PiAiAdapter extends LlmAdapter {
         this.config.onThinkingOmitted?.({ provider: options.provider, model: options.model, count })
       })
       const events = snapshot.models.streamSimple(model, context, {
-        ...profileOptions(profile, reasoning, apiKey),
+        ...profileOptions(profile, reasoning, apiKey, this.config.fetch),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
         ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
