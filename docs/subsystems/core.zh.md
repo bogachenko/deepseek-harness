@@ -695,7 +695,7 @@ Source: [`packages/preset/agent-preset-registry/src/index.ts`](../../packages/pr
 
 ### `ctx.agents` — `AgentRegistry`
 
-Agent service (`ctx.agents`): tracks live agents and delegates process-local attribution to an `AgentInitiatorScopeFactory`. Node.js compositions can select independent async scopes; V8 compositions can select the single-active-Agent strategy. Agent *creation* is provided by whichever plugin implements the AgentFactory (`@deepseek-ai/dsh-agent-loop`), registered via setFactory.
+Agent service (`ctx.agents`): tracks live agents and delegates process-local attribution to an AgentInitiatorScopeFactory. Node.js compositions can select independent async scopes; V8 compositions can select the single-active-Agent strategy. Agent *creation* is provided by whichever plugin implements the AgentFactory (`@deepseek-ai/dsh-agent-loop`), registered via setFactory.
 
 Initiator methods provide same-process causal attribution only. Ambient presence is neither liveness proof nor authorization; subjects and owners remain explicit, as does identity at worker, process, persistence, and wire boundaries. Each provider owns its returned-Promise drain and teardown semantics.
 
