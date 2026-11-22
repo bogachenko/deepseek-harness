@@ -1,5 +1,27 @@
 # Аудит совместимости DeepSeek Harness с Telegram Serverless
 
+## 0. Повторная проверка официальной документации Telegram Serverless
+
+Источник: [официальная документация Telegram Serverless](https://blogfork.telegram.org/bots/serverless), проверена 22 ноября 2026 года.
+
+Подтверждено документацией:
+
+- `sdk/fetch` поддерживает потоковое чтение ответа через `for await (const chunk of response.body)`; это позволяет принимать SSE/token stream без Node `fetch`. Общий размер ответа ограничен 30 MB.
+- Текущий DSH parser `packages/llm/llm-deepseek/src/sse.ts` принимает Web `ReadableStream` и использует `TextDecoderStream` + `eventsource-parser`. Telegram SDK описывает тело ответа как async iterable. Serverless adapter должен преобразовать async iterable в поддерживаемый parser input либо иметь собственный SSE framing parser. Сам SDK stream не следует считать Web `ReadableStream` без проверки.
+- Database SDK предоставляет асинхронные запросы, raw SQL (`db.run/all/get/values`), `RETURNING`, `ON CONFLICT` и `rowsAffected`. Это подтверждает необходимые базовые SQL building blocks, но документация не описывает API транзакций, isolation level, CAS/concurrency guarantees или durability barrier.
+- `PRAGMA foreign_keys` выключен; ссылки на tenant/session/agent должны проверяться приложением и включать tenant scope в запросы.
+- Runtime принимает только SDK imports (`sdk`, `sdk/db`, `sdk/fetch`) и относительные imports собственных модулей с расширением `.js`. Внешние npm imports не разрешаются; deployable JS должен находиться внутри `tgcloud/`.
+
+Следствия для реализации:
+
+1. LLM transport через SDK технически поддерживает streaming, но формат API и credential policy остаются отдельными нерешёнными продуктовыми решениями.
+2. Нельзя переносить `eventsource-parser` как обычную runtime npm dependency. Его нужно либо исключить из deployable closure, либо включить необходимую реализацию в собственные `tgcloud/lib/*.js`.
+3. SQLite persistence нельзя строить на предположении о multi-statement transactions. Сначала требуется проверить реальные гарантии SDK; допустимый дизайн должен явно обеспечивать single-writer fencing, contiguous append, идемпотентность и durability.
+4. Сборка DSH должна включить все нужные зависимости в собственные JS-модули внутри `tgcloud/`; импортировать пакеты из `node_modules` в runtime нельзя.
+
+Пункты выше подтверждают возможности и ограничения по документации, но не заменяют runtime spike через `tgcloud run` и проверку на реальном deployment.
+
+
 > Границы задачи проекта зафиксированы в [dsh-telegram-platform/docs/project-scope.md](https://github.com/bogachenko/dsh-telegram-platform/blob/main/docs/project-scope.md). Этот аудит — техническая часть этой задачи, а не расширение её scope.
 
 - **Дата:** 2026-11-22
