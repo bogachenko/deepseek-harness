@@ -130,6 +130,23 @@ describe('PiAiAdapter provider routing', () => {
     expect(server.paths).toEqual(['/chat/completions'])
   })
 
+  it('uses the runtime-provided fetch while preserving the configured provider protocol', async () => {
+    const server = await mockServer([{ events: textEvents }])
+    const fetch = vi.fn(globalThis.fetch)
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    ctx.provide('serverlessFetch', fetch)
+    await ctx.plugin(LlmPiAi, {
+      providers: { deepseek: { apiKeyEnv: 'PI_TEST_KEY', baseURL: server.url } },
+    })
+
+    const result = await assemble(ctx, { model: 'deepseek-flash', messages: [] })
+
+    expect(result.message.content).toEqual([{ type: 'text', text: 'hello' }])
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(server.paths).toEqual(['/chat/completions'])
+  })
+
   it('keeps prepared model metadata and dispatch on one profile snapshot', async () => {
     const first = await mockServer([{ events: textEvents }])
     const second = await mockServer([])
