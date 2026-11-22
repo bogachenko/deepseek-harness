@@ -13,6 +13,7 @@ import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
+import * as NodeAgentInitiator from '@deepseek-ai/dsh-agent-initiator-node'
 import type { SessionHandle } from '@deepseek-ai/dsh-session-persistence'
 
 import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
@@ -45,6 +46,7 @@ async function makeCoreContext(): Promise<Context> {
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(NativeToolExecutor)
+  await ctx.plugin(NodeAgentInitiator)
   await ctx.plugin(AgentRegistry)
   return ctx
 }
