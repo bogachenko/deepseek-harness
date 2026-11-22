@@ -93,7 +93,7 @@ await handle.agent.whenIdle()
 
 ### 设计理念
 
-该包建立在一项职责分离之上：公开的 `Agent` 接口与注册表位于本包，构造与驱动则位于循环包，并通过已注册工厂提供。消费方因此依赖 `dsh-agent` 而不依赖 `dsh-agent-loop`，从而保持驱动器可替换。第二个理念是发起方作用域：一条 `AsyncLocalStorage` 链把确切的实时 `Agent` 携带经过它启动的异步驱动器工作，使驱动器之下的辅助函数无需逐调用转发 agent 即可归因自己的工作。
+该包建立在一项职责分离之上：公开的 `Agent` 接口与注册表位于本包，构造与驱动则位于循环包，并通过已注册工厂提供。消费方因此依赖 `dsh-agent` 而不依赖 `dsh-agent-loop`，从而保持驱动器可替换。第二个理念是发起方作用域：由运行时选择的策略将确切的实时 `Agent` 传递到驱动器工作中，使驱动器之下的辅助函数无需逐调用转发 agent 即可归因自己的工作。`dsh-agent` 拥有作用域契约；`dsh-agent-initiator-node` 使用 Node.js `AsyncLocalStorage` 提供彼此隔离的并发 Agent；`dsh-agent-initiator-single` 则提供适用于 V8/serverless、每次 invocation 仅一个活动 Agent 的策略。
 
 ### 步骤准入
 
@@ -129,7 +129,7 @@ await handle.agent.whenIdle()
 
 ### 发起方作用域
 
-每个驱动器在 `ctx.agents.withInitiator(agent, ...)` 内运行其完整生命周期，因此继承的异步链会观察到该 agent；`withoutInitiator()` 为共享定时器等无关的进程本地工作隐藏它。该边界只是进程本地归因——环境中的身份既不是存活证明，也不是授权，显式身份在 worker、进程、持久化与 wire 边界保持权威。Teardown 拒绝新边界，让返回 Promise 的边界排空，然后禁用底层存储。[发起方作用域决策](../../../.agents/notes/implemented/architecture/2026-07-15-agent-initiator-scope.zh.md) 拥有详细约定。
+每个 driver 都在 `ctx.agents.withInitiator(agent, ...)` 内运行其完整生命周期。所选 provider 决定传播语义：Node.js 组合使用 `dsh-agent-initiator-node`，保留不同 Agent 之间的独立并发；V8/serverless 组合使用 `dsh-agent-initiator-single`，允许同一 Agent 的嵌套与重叠边界，但会拒绝第二个不同 Agent，或在 Agent 活动期间建立无 Agent 边界。Single-Agent provider 仅适用于每次 invocation 只拥有一个活动 Agent，并在释放 Cordis root 前等待其 driver 完成的场景。该边界只是进程内归因——环境中的身份既不是存活证明，也不是授权，显式身份在 worker、进程、持久化与 wire 边界保持权威。[发起方作用域决策](../../../.agents/notes/implemented/architecture/2026-07-15-agent-initiator-scope.zh.md) 记录了原始 Node.js 生命周期契约。
 
 ### 所有权不变式
 

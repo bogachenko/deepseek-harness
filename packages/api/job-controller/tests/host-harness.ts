@@ -1,6 +1,7 @@
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
+import * as NodeAgentInitiator from '@deepseek-ai/dsh-agent-initiator-node'
 import { unsupportedModel, unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { JobAppendOptions, JobHandle, JobOutcome } from '@deepseek-ai/dsh-jobs'
@@ -12,6 +13,7 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 export async function harness(): Promise<Context> {
   const ctx = new Context()
   await ctx.plugin(SessionProjectionRegistry)
+  await ctx.plugin(NodeAgentInitiator)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(LocalJobRegistry, { retainBytes: 64, settledRetainBytes: 64 })
   ctx.jobs.attachController('job-controller-test')

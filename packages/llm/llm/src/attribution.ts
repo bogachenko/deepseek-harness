@@ -7,7 +7,7 @@
  * @module @deepseek-ai/dsh-llm/attribution
  */
 
-import { createRequire } from 'node:module'
+import { packageVersion } from './version.js'
 
 // The package's own manifest is the single source of the version so the
 // User-Agent cannot drift from what is published (`./package.json` is an
@@ -44,7 +44,7 @@ const PRODUCT = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+(?:\/[!#$%&'*+.^_`|~0-9A-Za-z-]+)?$
  * @throws Error when the value is not an RFC 9110 product token.
  */
 function launchSuffix(): string | undefined {
-  const value = process.env.DSH_USER_AGENT_SUFFIX
+  const value = (globalThis as typeof globalThis & { process?: { env?: Record<string, string | undefined> } }).process?.env?.DSH_USER_AGENT_SUFFIX
   if (value === undefined || value === '') return undefined
   if (!PRODUCT.test(value)) throw new Error(`DSH_USER_AGENT_SUFFIX must be an RFC 9110 product token; got ${JSON.stringify(value)}`)
   return value

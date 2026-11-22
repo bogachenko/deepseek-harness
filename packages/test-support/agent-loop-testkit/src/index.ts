@@ -7,6 +7,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
+import * as NodeAgentInitiator from '@deepseek-ai/dsh-agent-initiator-node'
 import type { Agent, AgentOptions, Inbox, InboxTarget } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
@@ -86,6 +87,7 @@ export async function mountAgentLoopTestDependencies(
   await ctx.plugin(ToolRuntime)
   if (options.tools?.mode === 'ptc') await ctx.plugin(PtcToolExecutor, { ...options.tools.maxParallelSubCalls !== undefined ? { maxParallelSubCalls: options.tools.maxParallelSubCalls } : {} })
   else await ctx.plugin(NativeToolExecutor)
+  await ctx.plugin(NodeAgentInitiator)
   await ctx.plugin(AgentRegistry)
 }
 

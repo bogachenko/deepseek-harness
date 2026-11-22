@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { runInNewContext } from 'node:vm'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
+import * as NodeAgentInitiator from '../src/index.ts'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { SessionId } from '@deepseek-ai/dsh-session'
@@ -18,6 +19,7 @@ async function harness(): Promise<{
 }> {
   const ctx = new Context()
   await ctx.plugin(SessionProjectionRegistry)
+  await ctx.plugin(NodeAgentInitiator)
   const fiber = await ctx.plugin(AgentRegistry)
   return {
     ctx,

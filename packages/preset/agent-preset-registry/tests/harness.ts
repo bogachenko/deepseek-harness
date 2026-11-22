@@ -8,6 +8,7 @@ import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
+import * as NodeAgentInitiator from '@deepseek-ai/dsh-agent-initiator-node'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import AgentPresets, { type PresetDefinition } from '../src/index.ts'
 import { liveConfig } from '../../../settings/settings/tests/live-config.ts'
@@ -29,6 +30,7 @@ export async function harness(options: { live?: boolean } = {}): Promise<Context
   await ctx.plugin(SystemPrompt, { personaPrefix: '' })
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(NativeToolExecutor)
+  await ctx.plugin(NodeAgentInitiator)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(AgentLoop, { agents: [] })
   if (options.live) liveRegistries.set(ctx, await liveConfig(ctx, AgentPresets, { default: 'standard' }))

@@ -10,6 +10,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { defineContentToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import AgentRegistry, { type Agent, type AssistantStreamFrame } from '@deepseek-ai/dsh-agent'
+import * as NodeAgentInitiator from '@deepseek-ai/dsh-agent-initiator-node'
 
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
@@ -39,6 +40,7 @@ async function harness(adapter: MockAdapter, persona = '') {
   await ctx.plugin(SystemPrompt, { personaPrefix: persona })
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(NativeToolExecutor)
+  await ctx.plugin(NodeAgentInitiator)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(AgentLoop, { agents: [] })
   ctx.llm.registerAdapter(['mock'], adapter)
@@ -1906,6 +1908,7 @@ describe('agent loop', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(NativeToolExecutor)
+    await ctx.plugin(NodeAgentInitiator)
     await ctx.plugin(AgentRegistry)
     await ctx.plugin(AgentLoop, {
       agents: [{ id: brandString<SessionId>('config-agent'), provider: 'mock', model: 'mock', reasoningEffort: effort }],
@@ -1937,6 +1940,7 @@ describe('agent loop', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(NativeToolExecutor)
+    await ctx.plugin(NodeAgentInitiator)
     await ctx.plugin(AgentRegistry)
     await ctx.plugin(AgentLoop, {
       agents: [{ id: brandString<SessionId>('config-agent'), provider: 'mock', model: 'mock', cwd: '/work/project' }],

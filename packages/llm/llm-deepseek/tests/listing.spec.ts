@@ -209,6 +209,18 @@ describe('requestModelListing', () => {
     return `http://127.0.0.1:${address.port}/models`
   }
 
+  it('uses an explicitly supplied HTTP transport', async () => {
+    const fetch = vi.fn(globalThis.fetch)
+    const url = await listen((_request, response) => {
+      response.end(JSON.stringify(LISTING))
+    })
+
+    const listing = await requestModelListing(url, {}, AbortSignal.timeout(5_000), fetch)
+
+    expect(listing.entries.map(entry => entry.id)).toEqual(['deepseek-flash', 'deepseek-v4-pro'])
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
   it('sends attribution, accept, and the given authentication headers', async () => {
     let headers: IncomingMessage['headers'] = {}
     const url = await listen((request, response) => {

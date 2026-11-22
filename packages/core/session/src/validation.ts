@@ -4,13 +4,22 @@
  * @module @deepseek-ai/dsh-session/validation
  */
 
-import { isAbsolute } from 'node:path'
 import { deepFreeze, snapshotJsonValue } from '@deepseek-ai/dsh-util-values'
 import type { Message } from '@deepseek-ai/dsh-llm'
 import { SESSION_FORMAT_VERSION, SessionLogOffset } from './types.ts'
 import type { SessionEvent, SessionHeader, SessionHeaderMeta, SessionId, SessionSeedEventState, SurfaceEventType } from './types.ts'
 import { SurfaceManager, validateSessionEventData } from './surface.ts'
 import type { SessionMessageProjection } from './surface.ts'
+
+/**
+ * Check an absolute path without importing Node's path module.
+ * Serverless V8 uses POSIX path semantics; Node.js Windows retains win32 semantics.
+ */
+function isAbsoluteSessionPath(path: string): boolean {
+  const platform = (globalThis as typeof globalThis & { process?: { platform?: string } }).process?.platform
+  if (platform !== 'win32') return path.startsWith('/')
+  return /^[\\/]|^[A-Za-z]:[\\/]/.test(path)
+}
 
 /** Validate and freeze one detached creation header in place. */
 function validateSessionHeader(id: SessionId, input: unknown): SessionHeader {
@@ -34,7 +43,7 @@ function validateSessionHeader(id: SessionId, input: unknown): SessionHeader {
   }
   if (record.cwd !== undefined) {
     if (typeof record.cwd !== 'string') throw new Error('session header cwd must be a string')
-    if (!isAbsolute(record.cwd)) {
+    if (!isAbsoluteSessionPath(record.cwd)) {
       throw new Error(`session header cwd must be an absolute path, got "${record.cwd}"`)
     }
   }

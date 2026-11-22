@@ -323,6 +323,17 @@ describe('direct Messages HTTP', () => {
 })
 
 describe('Cordis provider composition', () => {
+  it('uses the runtime-provided fetch for Messages requests', async () => {
+    const fetch = vi.fn(globalThis.fetch)
+    const { ctx, http } = await boot(undefined, undefined, fetch)
+
+    await chunks(ctx.llm.stream(options()))
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(http.requests).toHaveLength(1)
+    expect(http.requests[0]?.headers['x-api-key']).toBe('stored-key')
+  })
+
   it('declares the replacement immediately after the last baseline tool is removed', async () => {
     const { ctx, http } = await boot()
     const baseline = { name: 'old_tool', description: 'Old tool', parameters: {} }
@@ -370,9 +381,14 @@ describe('Cordis provider composition', () => {
     expect(price().priceImages([{ type: 'image', attachment }])[0]?.text).toContain('/mounted/image.png')
   })
 
-  async function boot(...args: Parameters<typeof server>) {
-    const http = await endpoint(...args)
+  async function boot(
+    reply?: Parameters<typeof server>[0],
+    listing?: Parameters<typeof server>[1],
+    fetchImpl?: typeof globalThis.fetch,
+  ) {
+    const http = await endpoint(reply, listing)
     const { ctx, home } = await context()
+    if (fetchImpl !== undefined) ctx.provide('serverlessFetch', fetchImpl)
     vi.stubEnv('DEEPSEEK_API_KEY', '')
     await writeFile(join(home, '.credentials.yaml'), 'version: 1\nrefs:\n  DEEPSEEK_API_KEY: stored-key\n', { mode: 0o600 })
     const template = await readFile(new URL('fixtures/cordis.yml', import.meta.url), 'utf8')

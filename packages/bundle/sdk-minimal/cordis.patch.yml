@@ -126,6 +126,9 @@
     - id: mcp-resources
       name: '@deepseek-ai/dsh-mcp-resources'
 
+    - id: agent-initiator-node
+      name: '@deepseek-ai/dsh-agent-initiator-node'
+
     - id: agent
       name: '@deepseek-ai/dsh-agent'
 
