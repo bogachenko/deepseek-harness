@@ -93,7 +93,7 @@ This section explains how the package realizes the behavior above; the observabl
 
 ### Design concept
 
-The package is built on one separation: the public `Agent` surface and registry live here, while construction and driving live in the loop package behind a registered factory. Consumers therefore depend on `dsh-agent` and never on `dsh-agent-loop`, keeping the driver swappable. The second idea is the initiator scope: a runtime-selected strategy that carries the exact live `Agent` through driver work, so helpers below a driver can attribute their work without forwarding the agent through every call. `dsh-agent` owns the scope contract; `dsh-agent-initiator-node` supplies Node.js `AsyncLocalStorage`, while `dsh-agent-initiator-single` supplies a V8/serverless strategy for one active Agent per invocation.
+The package is built on one separation: the public `Agent` surface and registry live here, while construction and driving live in the loop package behind a registered factory. Consumers therefore depend on `dsh-agent` and never on `dsh-agent-loop`, keeping the driver swappable. The second idea is the initiator scope: an `AsyncLocalStorage` chain that carries the exact live `Agent` through the asynchronous driver work it starts, so helpers below a driver can attribute their work without forwarding the agent through every call.
 
 ### Step admission
 
@@ -129,7 +129,7 @@ The registry also answers the Workspace registry's archive admission ([seam](../
 
 ### Initiator scope
 
-Each driver runs its complete lifetime inside `ctx.agents.withInitiator(agent, ...)`. The selected provider determines propagation semantics: Node.js compositions use `dsh-agent-initiator-node` and preserve independent overlapping Agents; V8/serverless compositions use `dsh-agent-initiator-single`, which permits nested and overlapping boundaries for the same Agent but rejects a second distinct Agent or an agentless boundary while an Agent is active. The single-Agent provider is valid only when the invocation owns one active Agent and awaits its driver before disposing the Cordis root. The boundary is process-local attribution only — ambient presence is neither liveness proof nor authorization, and explicit identity stays authoritative at worker, process, persistence, and wire boundaries. The [initiator-scope decision](../../../.agents/notes/implemented/architecture/2026-07-15-agent-initiator-scope.md) owns the original Node.js lifecycle contract.
+Each driver runs its complete lifetime inside `ctx.agents.withInitiator(agent, ...)`, so inherited async chains observe that agent; `withoutInitiator()` hides it for unrelated process-local work such as shared timers. The boundary is process-local attribution only — ambient presence is neither liveness proof nor authorization, and explicit identity stays authoritative at worker, process, persistence, and wire boundaries. Teardown rejects new boundaries, lets returned-Promise boundaries drain, then disables the underlying storage. The [initiator-scope decision](../../../.agents/notes/implemented/architecture/2026-07-15-agent-initiator-scope.md) owns the detailed contract.
 
 ### Ownership invariants
 
