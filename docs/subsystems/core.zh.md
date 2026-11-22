@@ -695,9 +695,9 @@ Source: [`packages/preset/agent-preset-registry/src/index.ts`](../../packages/pr
 
 ### `ctx.agents` — `AgentRegistry`
 
-Agent service (`ctx.agents`) tracks live agents and delegates process-local attribution to the configured `AgentInitiatorScopeFactory`. `dsh-agent-initiator-node` provides independent Node.js async scopes; the V8-compatible default and `dsh-agent-initiator-single` allow one active Agent per invocation. Agent *creation* is provided by the plugin implementing AgentFactory (`@deepseek-ai/dsh-agent-loop`), registered via setFactory.
+Agent 服务（`ctx.agents`）跟踪实时 Agent，并将进程内归因委托给配置的 `AgentInitiatorScopeFactory`。`dsh-agent-initiator-node` 提供彼此独立的 Node.js 异步作用域；V8 兼容的默认策略与 `dsh-agent-initiator-single` 则将每次 invocation 限制为一个活动 Agent。Agent *创建* 由实现 AgentFactory 的插件（`@deepseek-ai/dsh-agent-loop`）提供，并通过 `setFactory` 注册。
 
-Initiator methods provide same-process causal attribution only. Ambient presence is neither liveness proof nor authorization; subjects and owners remain explicit, as does identity at worker, process, persistence, and wire boundaries. Providers drain returned Promise boundaries during teardown. The single-Agent provider permits nested/overlapping boundaries only for the same Agent and rejects a distinct Agent or an agentless boundary while an Agent is active.
+发起者方法仅用于同一进程内的因果归因。环境中的身份既不是存活证明，也不是授权；subject 和 owner 仍需显式传递，worker、进程、持久化及 wire 边界上的身份也同样如此。各 provider 会在 teardown 时排空已返回的 Promise 边界。Single-Agent provider 仅允许同一 Agent 的嵌套/重叠边界；当一个 Agent 处于活动状态时，它会拒绝另一个不同的 Agent 或无 Agent 边界。
 
 ```ts cordis-catalog
 /**
