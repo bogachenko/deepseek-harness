@@ -181,7 +181,7 @@ Cordis core можно оставить основой plugin lifecycle. Но ru
 
 ## 7. Рекомендуемый порядок реализации
 
-1. **Runtime smoke test:** проверить global Web Crypto, AbortController/AbortSignal, structuredClone, Promise.withResolvers, async iterators, TextEncoder/Decoder и streaming `sdk/fetch`.
+1. **Runtime smoke test:** проверить global Web Crypto (`crypto.getRandomValues`), `btoa`/`atob`, AbortController/AbortSignal, structuredClone, Promise.withResolvers, async iterators, TextEncoder/Decoder и streaming `sdk/fetch`.
 2. **Bundle spike:** собрать минимальный Cordis + Session + Tools + LLM core в deployable `tgcloud/lib/*.js`, оставив SDK imports external.
 3. **Agent initiator scope:** выполнено — Node-specific `AsyncLocalStorage` вынесен в отдельный provider, а V8-compatible single-Agent provider добавлен с regression tests. Требуется runtime smoke test на Telegram.
 4. **Agent Loop ID seam:** выполнено — Agent Loop использует browser-safe `dsh-util-crypto.randomUUID()`. Требуется проверить `crypto.getRandomValues` на реальном Serverless invocation.
