@@ -68,6 +68,17 @@ DSH workspace не может быть загружен как набор npm-п
 
 Это **главный blocker Agent Core**. Простая замена на глобальную переменную или стек не сохранит корректность при конкурентных async-задачах одного invocation. Требуется отдельный дизайн явной передачи инициатора через execution context/Agent scope либо другой механизм, который будет подтверждён тестами. `isPromise` — меньшая Node-specific зависимость, но замена тоже должна сохранить контракт точного Promise-return поведения.
 
+##### Что это означает для Serverless-модели
+
+В исходном DSH `AgentLoop` оборачивает полный lifetime driver в `ctx.agents.withInitiator(agent, ...)`. Потребители ambient initiator включают goal tools, web-search/web API integrations и browser-use plugins; фоновые schedule/goal drivers используют `withoutInitiator()`.
+
+Для Telegram Serverless возможны две модели:
+
+1. **Один Cordis root и один активный Agent на invocation.** Каждый Telegram Update или Mini App endpoint создаёт собственный runtime, восстанавливает только выбранную сессию/агента, выполняет один запрос и закрывает runtime. Разные пользователи и разные агенты выполняются в разных invocation. Это позволяет реализовать ограниченный invocation-local initiator без межагентной конкуренции. Плагины, запускающие независимую фоновую работу через `withoutInitiator()`, не входят в первый runtime.
+2. **Несколько активных Agent в одном invocation.** Тогда ambient initiator нельзя корректно заменить простым полем/глобальной переменной. Нужна более широкая миграция plugin APIs на явный Agent/ExecutionContext и обновление всех потребителей `currentInitiator()`/`requireInitiator()`.
+
+Для первой версии платформы вариант 1 выглядит естественным: Serverless invocation обрабатывает один конкретный update/request, а список пользовательских агентов — это выбор агента между запросами, не одновременное выполнение всех агентов в одном runtime. Это пока предложение, требующее подтверждения продуктового инварианта.
+
 #### `@deepseek-ai/dsh-agent-loop`
 
 Файл: `packages/core/agent-loop/src/index.ts`
