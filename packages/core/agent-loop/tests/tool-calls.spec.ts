@@ -17,6 +17,7 @@ import type { ContextFormed } from '@deepseek-ai/dsh-llm'
 import ToolRuntime, { TOOL_ABORTED_BEFORE_DISPATCH, type PostToolDecision, type PreToolDecision } from '@deepseek-ai/dsh-tools'
 import { defineContentToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
+import * as NodeAgentInitiator from '@deepseek-ai/dsh-agent-initiator-node'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { MockAdapter, textResponse } from './mock-adapter.ts'
@@ -45,6 +46,7 @@ async function harness(adapter: MockAdapter, maxParallelToolCalls?: number, exec
       owner.tools.setExecutor(executor)
     },
   })
+  await ctx.plugin(NodeAgentInitiator)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(AgentLoop, {
     agents: [],
