@@ -64,6 +64,7 @@
     "@deepseek-ai/dsh-tool-testkit": "workspace:*",
     "@deepseek-ai/dsh-tools": "workspace:*",
     "@deepseek-ai/dsh-compaction": "workspace:*",
-    "@deepseek-ai/dsh-deepseek-auth": "workspace:*"
+    "@deepseek-ai/dsh-deepseek-auth": "workspace:*",
+    "@deepseek-ai/dsh-agent-initiator-node": "workspace:*"
   }
 }
