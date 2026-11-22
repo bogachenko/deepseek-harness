@@ -1562,6 +1562,9 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@deepseek-ai/dsh-agent-initiator-node':
+        specifier: workspace:*
+        version: link:../../core/agent-initiator-node
       '@deepseek-ai/dsh-api-gateway':
         specifier: workspace:*
         version: link:../gateway
@@ -2596,6 +2599,9 @@ importers:
       '@deepseek-ai/dsh-agent-default-model':
         specifier: workspace:*
         version: link:../../core/agent-default-model
+      '@deepseek-ai/dsh-agent-initiator-node':
+        specifier: workspace:*
+        version: link:../../core/agent-initiator-node
       '@deepseek-ai/dsh-agent-instructions':
         specifier: workspace:*
         version: link:../../context/agent-instructions
@@ -3040,6 +3046,9 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@deepseek-ai/dsh-agent-initiator-node':
+        specifier: workspace:*
+        version: link:../../core/agent-initiator-node
       '@deepseek-ai/dsh-agent-loop':
         specifier: workspace:*
         version: link:../../core/agent-loop
@@ -9055,6 +9064,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-agent-initiator-node':
+        specifier: workspace:*
+        version: link:../agent-initiator-node
       '@deepseek-ai/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
@@ -9108,6 +9120,33 @@ importers:
         specifier: workspace:*
         version: link:../../settings/settings
 
+  packages/core/agent-initiator-node:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-agent':
+        specifier: workspace:*
+        version: link:../agent
+
+  packages/core/agent-initiator-single:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-agent':
+        specifier: workspace:*
+        version: link:../agent
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:*
+        version: link:../session
+      '@deepseek-ai/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
+
   packages/core/agent-loop:
     dependencies:
       '@deepseek-ai/dsh-brand':
@@ -9129,6 +9168,9 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: workspace:*
         version: link:../agent
+      '@deepseek-ai/dsh-agent-initiator-node':
+        specifier: workspace:*
+        version: link:../agent-initiator-node
       '@deepseek-ai/dsh-compaction':
         specifier: workspace:*
         version: link:../../compaction/compaction
@@ -15912,6 +15954,9 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@deepseek-ai/dsh-agent-initiator-node':
+        specifier: workspace:*
+        version: link:../../core/agent-initiator-node
       '@deepseek-ai/dsh-agent-loop':
         specifier: workspace:*
         version: link:../../core/agent-loop
@@ -16231,6 +16276,9 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@deepseek-ai/dsh-agent-initiator-node':
+        specifier: workspace:*
+        version: link:../../core/agent-initiator-node
       '@deepseek-ai/dsh-agent-loop':
         specifier: workspace:*
         version: link:../../core/agent-loop
@@ -19451,6 +19499,9 @@ importers:
 
   packages/test-support/agent-loop-testkit:
     dependencies:
+      '@deepseek-ai/dsh-agent-initiator-node':
+        specifier: workspace:*
+        version: link:../../core/agent-initiator-node
       '@deepseek-ai/dsh-tool-executor-native':
         specifier: workspace:*
         version: link:../../core/tool-executor-native
