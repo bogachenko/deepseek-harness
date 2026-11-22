@@ -469,7 +469,9 @@ export class AgentRegistry extends Service {
    * Use this while creating lazy shared timers, queue pumps, pool maintenance,
    * watchers, or exporters so they do not inherit the first Agent that happens
    * to initialize them. It clears only initiator attribution, not explicit
-   * fields, and does not own or drain detached resources.
+   * fields, and does not own or drain detached resources. A single-Agent
+   * invocation provider rejects this boundary while an Agent is active because
+   * it cannot isolate overlapping async chains without AsyncLocalStorage.
    * @param operation - synchronous or asynchronous operation to invoke without an initiator.
    * @returns the exact value returned by `operation`.
    * @throws when the initiator scope is closing/disposed, or when `operation` throws.
