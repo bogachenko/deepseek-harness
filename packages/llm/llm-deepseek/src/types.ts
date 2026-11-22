@@ -139,6 +139,8 @@ export interface DeepSeekAdapterOptions<Connection extends DeepSeekConnectionOpt
   missingCredential?: (connection: Connection, provider: string) => LlmError
   /** Resolve the harness-home anonymous id shared with telemetry and feedback. */
   resolveUserId: () => AnonymousUserId
+  /** Optional request transport supplied by the runtime; omission keeps global fetch. */
+  fetch?: typeof globalThis.fetch
   /** Resolve the current durable attachment service; absence rejects image input. */
   resolveAttachments?: () => AttachmentStore | undefined
   /** Bridge one attachment reference into the current model-tool execution world. */
