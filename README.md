@@ -58,6 +58,14 @@ Start with the [development guide](docs/development.md) and [architecture docume
 
 For agents, follow [AGENTS.md](AGENTS.md).
 
+## Telegram Serverless adaptation
+
+The fork's Telegram Serverless work is tracked on the `telegram-serverless-adaptation` branch.
+
+- [Telegram Serverless compatibility audit](docs/telegram-serverless-compatibility-audit.md)
+
+This is an initial source audit. Runtime compatibility has not yet been verified by deploying to Telegram Serverless.
+
 ## Citation
 
 ```bibtex
