@@ -94,6 +94,7 @@
     "@deepseek-ai/dsh-workspace": "workspace:*",
     "@deepseek-ai/cordis": "workspace:~",
     "@deepseek-ai/dsh-goal": "workspace:*",
-    "@deepseek-ai/dsh-goal-round-driver": "workspace:*"
+    "@deepseek-ai/dsh-goal-round-driver": "workspace:*",
+    "@deepseek-ai/dsh-agent-initiator-node": "workspace:*"
   }
 }
