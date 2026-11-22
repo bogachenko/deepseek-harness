@@ -1,5 +1,7 @@
 # Аудит совместимости DeepSeek Harness с Telegram Serverless
 
+> **Строгое правило:** адаптируем DSH к Telegram Serverless, а не переделываем DSH под наши предположения. Сохраняем существующие адаптеры, API/protocols, контракты и поведение. Сначала доказываем несовместимость, затем выбираем минимальную адаптацию на границе runtime/transport/dependency. Изменение существующей функциональности — только при доказанной необходимости и после отдельного согласования. Полная рамка: [project scope](https://github.com/bogachenko/dsh-telegram-platform/blob/main/docs/project-scope.md#строгое-правило-адаптации-dsh).
+
 ## 0. Повторная проверка официальной документации Telegram Serverless
 
 Источник: [официальная документация Telegram Serverless](https://blogfork.telegram.org/bots/serverless), проверена 22 ноября 2026 года.
@@ -14,7 +16,7 @@
 
 Следствия для реализации:
 
-1. LLM transport через SDK технически поддерживает streaming, но формат API и credential policy остаются отдельными нерешёнными продуктовыми решениями.
+1. LLM transport через SDK технически поддерживает streaming. Существующие DSH LLM adapters и поддерживаемые ими API/protocols сохраняются; выбирать один протокол вместо другого не требуется. Отдельно нужно определить только credential policy и способ передачи credentials в Serverless.
 2. Нельзя переносить `eventsource-parser` как обычную runtime npm dependency. Его нужно либо исключить из deployable closure, либо включить необходимую реализацию в собственные `tgcloud/lib/*.js`.
 3. SQLite persistence нельзя строить на предположении о multi-statement transactions. Сначала требуется проверить реальные гарантии SDK; допустимый дизайн должен явно обеспечивать single-writer fencing, contiguous append, идемпотентность и durability.
 4. Сборка DSH должна включить все нужные зависимости в собственные JS-модули внутри `tgcloud/`; импортировать пакеты из `node_modules` в runtime нельзя.
