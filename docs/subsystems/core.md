@@ -683,9 +683,9 @@ Source: [`packages/preset/agent-preset-registry/src/index.ts`](../../packages/pr
 
 ### `ctx.agents` — `AgentRegistry`
 
-Agent service (`ctx.agents`): tracks live agents and carries the initiating Agent through one process-local asynchronous driver chain. Agent *creation* is provided by whichever plugin implements the AgentFactory (`@deepseek-ai/dsh-agent-loop`), registered via setFactory.
+Agent service (`ctx.agents`): tracks live agents and delegates process-local attribution to the configured `AgentInitiatorScopeFactory`. `dsh-agent-initiator-node` supplies independent Node.js async scopes; the V8-compatible default and `dsh-agent-initiator-single` allow one active Agent per invocation. Agent *creation* is provided by whichever plugin implements the AgentFactory (`@deepseek-ai/dsh-agent-loop`), registered via setFactory.
 
-Initiator methods provide same-process causal attribution only. Ambient presence is neither liveness proof nor authorization; subjects and owners remain explicit, as does identity at worker, process, persistence, and wire boundaries. Returned Promise boundaries drain during teardown, except a nested lineage that starts an owning-fiber unload is excluded from its own drain.
+Initiator methods provide same-process causal attribution only. Ambient presence is neither liveness proof nor authorization; subjects and owners remain explicit, as does identity at worker, process, persistence, and wire boundaries. Providers drain returned Promise boundaries during teardown. The single-Agent provider allows nested/overlapping boundaries only for the same Agent and rejects a distinct Agent or agentless boundary while an Agent is active.
 
 ```ts cordis-catalog
 /**
