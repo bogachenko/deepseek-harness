@@ -235,7 +235,6 @@ export interface AgentFactory {
 /** Thrown when create/resume is called before an agent factory is registered. */
 const NO_FACTORY_MESSAGE = 'no agent factory registered (load an agent-loop plugin)'
 const NO_INITIATOR_MESSAGE = 'no initiating agent is active'
-const DISPOSED_INITIATOR_MESSAGE = 'agent initiator scope is disposed'
 
 /** All mutable lifecycle state for one exact registry entry. */
 interface AgentEntry {
