@@ -4,7 +4,7 @@ import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import SingleAgentInitiator from '@deepseek-ai/dsh-agent-initiator-single'
+import * as SingleAgentInitiator from '../src/index.ts'
 
 function agent(id: string): Agent {
   return { id: brandString<SessionId>(id) } as Agent
