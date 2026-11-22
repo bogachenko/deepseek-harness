@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/core/agent-initiator-node/README.md
+/:
+  en: 07ace1ab235b7496
+  zh: 07ace1ab235b7496
+/deepseek-ai-dsh-agent-initiator-node:
+  en: 99a4eeda9d0aa4fe
+  zh: d0364546a9ab2523
+/deepseek-ai-dsh-agent-initiator-node/summary:
+  en: 3e897f8fac5a1ccd
+  zh: 7eeef074d70f5743
+/deepseek-ai-dsh-agent-initiator-node/use-this-package:
+  en: 0928b13f3ab2a635
+  zh: 87ba187bc74cd7d9
+/deepseek-ai-dsh-agent-initiator-node/runtime-contract:
+  en: 9655932a7b524cbf
+  zh: 8d3616c99ccbe873
+/deepseek-ai-dsh-agent-initiator-node/known-limitations:
+  en: 3c3540be627e7dff
+  zh: 713d09480e0006d3
