@@ -24,9 +24,10 @@ export function createModelListingCache(
   dependencies: Pick<ListingCacheDependencies, 'settings' | 'credential'> & Partial<Pick<ListingCacheDependencies, 'load'>>,
 ): ModelListingCache {
   const tag = `[${owner}]`
+  const fetch = ctx.get('serverlessFetch') as typeof globalThis.fetch | undefined
   const cache = new ModelListingCache({
     ...dependencies,
-    load: dependencies.load ?? requestModelListing,
+    load: dependencies.load ?? ((url, headers, signal) => requestModelListing(url, headers, signal, fetch)),
     now: () => Date.now(),
     // ACP reserves stdout for protocol messages, including during successful catalog loads.
     info: (message) => { console.error(tag, message) },
@@ -54,6 +55,7 @@ export function registerDeepSeekProvider<C extends DeepSeekConnectionOptions>(
   const unacceptedRoutes = new Set<string>()
   const adapter = new DeepSeekAdapter({
     ...dependencies,
+    fetch: ctx.get('serverlessFetch') as typeof globalThis.fetch | undefined,
     resolveUserId: () => userId ??= getOrCreateAnonymousUserId(),
     onReplayDegrade: ({ provider, model, reason }) => {
       const key = `${provider}/${model}\u0000${reason}`
