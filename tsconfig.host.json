@@ -488,6 +488,8 @@
     { "path": "./packages/core/system-prompt" },
     { "path": "./packages/core/agent" },
     { "path": "./packages/core/agent-default-model" },
+    { "path": "./packages/core/agent-initiator-node" },
+    { "path": "./packages/core/agent-initiator-single" },
     { "path": "./packages/interaction/commands" },
     { "path": "./packages/goal/goal" },
     { "path": "./packages/goal/tool-goal" },
