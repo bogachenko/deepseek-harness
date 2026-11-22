@@ -3,18 +3,18 @@
 - **Дата:** 2026-11-22
 - **Ветка:** `telegram-serverless-adaptation`
 - **База аудита:** `master` форка, синхронизированный с upstream на момент начала работ
-- **Статус:** первичный аудит исходников и V8-compatible single-Agent scope implementation; runtime-проверка на Telegram Serverless ещё не проводилась
+- **Статус:** аудит исходников, V8-compatible single-Agent scope и browser-safe UUID seam; runtime-проверка на Telegram Serverless ещё не проводилась
 
 ## 1. Вывод
 
 Полностью запустить стандартную Node.js-сборку DSH в Telegram Serverless нельзя. Но базовые части агентной архитектуры выглядят переносимыми: Cordis core, Session event model, Tool Registry и provider-neutral LLM API не требуют локального сервера по своей концепции.
 
-В проверенной части core runtime прямые Node imports удалены из `dsh-agent`, `dsh-agent-loop`, `dsh-session` и provider-neutral `dsh-llm`. Для работающего Serverless runtime остаются четыре основные адаптации:
+В проверенной части core runtime прямые Node imports удалены из `dsh-agent`, `dsh-agent-loop`, `dsh-session` и provider-neutral `dsh-llm`. Для работающего Serverless runtime остаются три основные адаптации и одна runtime-проверка:
 
-1. выбрать V8-compatible initiator scope с одним активным Agent на invocation — базовая реализация добавлена в форк;
-2. отделить Agent Loop от Node.js UUID API;
-3. подключить LLM через Telegram SDK `sdk/fetch`, не через обычный Node/global transport;
-4. реализовать собственный `SessionPersistence` поверх Telegram SQLite SDK.
+1. проверить доступность `globalThis.crypto.getRandomValues` в реальном Telegram V8 invocation; browser-safe UUID seam уже добавлен через `dsh-util-crypto`;
+2. подключить LLM через Telegram SDK `sdk/fetch`, не через обычный Node/global transport;
+3. реализовать собственный `SessionPersistence` поверх Telegram SQLite SDK;
+4. собрать выбранное подмножество DSH в deployable `.js` modules внутри `tgcloud/` и проверить module resolution.
 
 Плагинный код должен быть включён в deployable JavaScript заранее. Установка npm-пакетов и исполнение произвольного пользовательского JavaScript в runtime не поддерживаются.
 
