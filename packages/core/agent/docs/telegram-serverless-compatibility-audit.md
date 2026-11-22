@@ -74,11 +74,7 @@ Regression tests добавлены для single-Agent scope; полный Node
 
 Файл: `packages/core/agent-loop/src/index.ts`
 
-Прямой Node import:
-
-- `node:crypto` — `randomUUID`.
-
-В репозитории уже есть `@deepseek-ai/dsh-util-crypto.randomUUID()`, основанный на `crypto.getRandomValues`. Вероятный минимальный патч — использовать существующий helper. Доступность Web Crypto в Telegram V8 должна быть проверена отдельным runtime smoke test.
+Первоначальный `node:crypto.randomUUID` заменён на `@deepseek-ai/dsh-util-crypto.randomUUID()`. Helper использует `globalThis.crypto.getRandomValues`, поэтому Node built-in из Agent Loop удалён. Официальная документация Telegram Serverless не перечисляет Web Crypto в явном перечне SDK API; доступность `crypto.getRandomValues` должна быть подтверждена runtime smoke test на реальном invocation.
 
 #### `@deepseek-ai/dsh-llm-deepseek`
 
@@ -188,7 +184,7 @@ Cordis core можно оставить основой plugin lifecycle. Но ru
 1. **Runtime smoke test:** проверить global Web Crypto, AbortController/AbortSignal, structuredClone, Promise.withResolvers, async iterators, TextEncoder/Decoder и streaming `sdk/fetch`.
 2. **Bundle spike:** собрать минимальный Cordis + Session + Tools + LLM core в deployable `tgcloud/lib/*.js`, оставив SDK imports external.
 3. **Agent initiator scope:** выполнено — Node-specific `AsyncLocalStorage` вынесен в отдельный provider, а V8-compatible single-Agent provider добавлен с regression tests. Требуется runtime smoke test на Telegram.
-4. **Agent Loop ID seam:** заменить Node crypto на browser-safe helper или инъецируемый ID provider.
+4. **Agent Loop ID seam:** выполнено — Agent Loop использует browser-safe `dsh-util-crypto.randomUUID()`. Требуется проверить `crypto.getRandomValues` на реальном Serverless invocation.
 5. **LLM adapter:** реализовать адаптер через `sdk/fetch`; отдельно решить provider endpoint и модель credentials.
 6. **SQLite spike:** подтвердить atomicity/concurrency/durability, затем реализовать Telegram persistence provider.
 7. **Plugin composition:** статически поставляемые Cordis plugins + декларативные HTTP plugins.
