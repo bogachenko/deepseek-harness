@@ -29,11 +29,13 @@ kind: "package-group"
 | [`system-prompt/`](system-prompt/README.zh.md) | 由有序段、工具 schema 与变量进行的系统提示词组装 | `ctx.systemPrompt` |
 | [`tools/`](tools/README.zh.md) | 供循环分发使用的工具注册表与带防护机制的执行流水线 | `ctx.tools` |
 | [`agent-tool-presentation/`](agent-tool-presentation/README.zh.md) | 为 preset 提供按 agent 的工具呈现方式选择器 | 无 ctx key |
-| [`agent/`](agent/README.zh.md) | 供插件编程使用的 `Agent` 句柄，以及其实时注册表与事件 | `ctx.agents` |
+| [`agent/`](agent/README.zh.md) | 供插件编程使用的 `Agent` 句柄、实时注册表、发起者作用域契约与事件 | `ctx.agents` |
+| [`agent-initiator-node/`](agent-initiator-node/README.md) | 支持多个并发 Agent 作用域的 Node.js AsyncLocalStorage 策略 | `agentInitiatorScopeFactory` |
+| [`agent-initiator-single/`](agent-initiator-single/README.md) | 每次 invocation 一个活动 Agent 的 V8-compatible 策略 | `agentInitiatorScopeFactory` |
 | [`agent-default-model/`](agent-default-model/README.zh.md) | 入口对全新 agent 应用的部署默认模型选择 | `ctx.agentDefaultModel` |
 | [`agent-loop/`](agent-loop/README.zh.md) | 默认 agent 驱动器：创建 agent 并运行轮次与步骤生命周期 | `ctx.agentLoop` |
 
-`scope` 提供共享作用域原语；`agent` 负责公开的 `Agent` 约定，而 `agent-loop` 是其默认实现，因此扩展插件依赖 `agent`，驱动器保持可替换。`agent-default-model` 负责入口在会话自身没有选择时应用的部署选择。可运行组合位于 [`packages/bundle`](../bundle/README.zh.md)；本分组只负责可替换的主干组件。
+`scope` 提供共享作用域原语；`agent` 负责公开的 `Agent` 约定，并将发起者传播委托给所选 provider。Node.js 组合使用 `agent-initiator-node`；隔离的 V8/serverless invocation 使用 `agent-initiator-single`。`agent-loop` 是默认驱动器，因此扩展插件依赖 `agent`，驱动器保持可替换。`agent-default-model` 负责入口在会话自身没有选择时应用的部署选择。可运行组合位于 [`packages/bundle`](../bundle/README.zh.md)；本分组只负责可替换的主干组件。
 
 -----
 
