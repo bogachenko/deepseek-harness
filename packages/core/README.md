@@ -29,11 +29,13 @@ Use the core packages to build or extend an agent that records durable session h
 | [`system-prompt/`](system-prompt/README.md) | System-prompt assembly from ordered sections, tool schemas, and variables | `ctx.systemPrompt` |
 | [`tools/`](tools/README.md) | The tool registry and guarded execution pipeline the loop dispatches through | `ctx.tools` |
 | [`agent-tool-presentation/`](agent-tool-presentation/README.md) | Per-agent tool-presentation selector for presets | no ctx key |
-| [`agent/`](agent/README.md) | The `Agent` handle plugins program against, plus its live registry and events | `ctx.agents` |
+| [`agent/`](agent/README.md) | The `Agent` handle plugins program against, its live registry, initiator scope contract, and events | `ctx.agents` |
+| [`agent-initiator-node/`](agent-initiator-node/README.md) | Node.js AsyncLocalStorage strategy for independent concurrent Agent scopes | `agentInitiatorScopeFactory` |
+| [`agent-initiator-single/`](agent-initiator-single/README.md) | V8-compatible strategy for one active Agent per invocation | `agentInitiatorScopeFactory` |
 | [`agent-default-model/`](agent-default-model/README.md) | The deployment default model selection entry points apply to fresh agents | `ctx.agentDefaultModel` |
 | [`agent-loop/`](agent-loop/README.md) | The default agent driver: creates agents and runs the turn and step lifecycle | `ctx.agentLoop` |
 
-`scope` supplies the shared scoping primitive; `agent` owns the public `Agent` contract, while `agent-loop` is its default implementation, so extension plugins depend on `agent` and the driver stays swappable. `agent-default-model` owns the deployment selection an entry point applies when a session has none of its own. Runnable compositions live under [`packages/bundle`](../bundle/README.md); this group owns only the swappable spine pieces.
+`scope` supplies the shared scoping primitive; `agent` owns the public `Agent` contract and delegates initiator propagation to a selected provider. Node.js compositions use `agent-initiator-node`; isolated V8/serverless invocations use `agent-initiator-single`. `agent-loop` is the default driver, so extension plugins depend on `agent` and the driver stays swappable. `agent-default-model` owns the deployment selection an entry point applies when a session has none of its own. Runnable compositions live under [`packages/bundle`](../bundle/README.md); this group owns only the swappable spine pieces.
 
 -----
 
