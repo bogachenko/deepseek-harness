@@ -144,7 +144,7 @@ export const singleAgentInitiatorScopeFactory: AgentInitiatorScopeFactory = {
 declare module '@deepseek-ai/cordis' {
   interface Context {
     agents: AgentRegistry
-    agentInitiatorScopeFactory: AgentInitiatorScopeFactory
+    agentInitiatorScopeFactory?: AgentInitiatorScopeFactory
   }
 }
 
