@@ -14,7 +14,7 @@ async function harness(): Promise<{ service: AgentRegistry; dispose: () => Promi
   const ctx = new Context()
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SingleAgentInitiator)
-  const fiber = await ctx.plugin(AgentRegistry)
+  await ctx.plugin(AgentRegistry)
   return { service: ctx.agents, dispose: () => ctx.fiber.dispose() }
 }
 
