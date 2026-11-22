@@ -43,13 +43,18 @@ export interface AgentInitiatorScopeFactory {
 }
 
 /** V8-compatible default scope for one active Agent per invocation. */
+interface DeferredVoid {
+  readonly promise: Promise<void>
+  resolve(): void
+}
+
 class SingleAgentInitiatorScope implements AgentInitiatorScope {
   private state: 'active' | 'closing' | 'disposed' = 'active'
   private activeAgent: Agent | undefined
   private activeAgentRuns = 0
   private activeAgentlessRuns = 0
   private activeRuns = 0
-  private drain: PromiseWithResolvers<void> | undefined
+  private drain: DeferredVoid | undefined
   private disposal: Promise<void> | undefined
 
   current(): Agent | undefined {
@@ -103,7 +108,11 @@ class SingleAgentInitiatorScope implements AgentInitiatorScope {
     return (this.disposal ??= (async () => {
       this.close()
       if (this.activeRuns !== 0) {
-        this.drain ??= Promise.withResolvers<void>()
+        if (this.drain === undefined) {
+          let resolve!: () => void
+          const promise = new Promise<void>(done => { resolve = done })
+          this.drain = { promise, resolve }
+        }
         await this.drain.promise
       }
       this.state = 'disposed'
