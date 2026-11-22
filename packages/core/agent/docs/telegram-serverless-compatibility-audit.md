@@ -16,7 +16,7 @@
 
 Следствия для реализации:
 
-1. LLM transport через SDK технически поддерживает streaming. Существующие DSH LLM adapters и поддерживаемые ими API/protocols сохраняются; выбирать один протокол вместо другого не требуется. Отдельно нужно определить только credential policy и способ передачи credentials в Serverless.
+1. LLM transport через SDK технически поддерживает streaming. Существующие DSH LLM adapters и поддерживаемые ими API/protocols сохраняются; выбирать один протокол вместо другого не требуется. В ветке добавлена необязательная Cordis service `serverlessFetch`: `llm-pi-ai` использует существующий fetch option pi-ai, `llm-deepseek` — необязательную fetch dependency. Для Node hosts поведение остаётся прежним. Отдельно нужно определить только credential policy.
 2. Нельзя переносить `eventsource-parser` как обычную runtime npm dependency. Его нужно либо исключить из deployable closure, либо включить необходимую реализацию в собственные `tgcloud/lib/*.js`.
 3. SQLite persistence нельзя строить на предположении о multi-statement transactions. Сначала требуется проверить реальные гарантии SDK; допустимый дизайн должен явно обеспечивать single-writer fencing, contiguous append, идемпотентность и durability.
 4. Сборка DSH должна включить все нужные зависимости в собственные JS-модули внутри `tgcloud/`; импортировать пакеты из `node_modules` в runtime нельзя.
@@ -38,7 +38,7 @@
 В проверенной части core runtime прямые Node imports удалены из `dsh-agent`, `dsh-agent-loop`, `dsh-session` и provider-neutral `dsh-llm`. Для работающего Serverless runtime остаются три основные адаптации и одна runtime-проверка:
 
 1. проверить доступность `globalThis.crypto.getRandomValues` в реальном Telegram V8 invocation; browser-safe UUID seam уже добавлен через `dsh-util-crypto`;
-2. подключить LLM через Telegram SDK `sdk/fetch`, не через обычный Node/global transport;
+2. передать Telegram SDK `sdk/fetch` в существующие LLM adapters через необязательный Cordis service `serverlessFetch`; provider protocols и request semantics не менять;
 3. реализовать собственный `SessionPersistence` поверх Telegram SQLite SDK;
 4. собрать выбранное подмножество DSH в deployable `.js` modules внутри `tgcloud/` и проверить module resolution.
 
@@ -115,7 +115,9 @@ Regression tests добавлены для single-Agent scope; полный Node
 - `files-api.ts` импортирует `node:crypto`;
 - текущая композиция provider включает локальные file/credential/home-path capabilities и loader-зависимости.
 
-В `@deepseek-ai/dsh-llm` есть абстрактный `LlmAdapter`. Поэтому Serverless вариант следует реализовать как отдельный адаптер, который использует `sdk/fetch` и выдаёт стандартные DSH `StreamChunk`. Не переносить локальное хранилище файлов, пока не появится отдельное требование на attachments.
+Существующие `llm-deepseek` и `llm-pi-ai` adapters сохраняются. В `llm-pi-ai` Telegram transport передаётся через уже существующий `pi-ai` fetch option; в `llm-deepseek` добавлена необязательная fetch dependency, которая используется для Messages requests, model listing и Files API. Host получает её из Cordis service `serverlessFetch`. Если service не предоставлен, оба adapters продолжают использовать обычный `globalThis.fetch`, то есть прежнее поведение Node не меняется. Отдельный LLM adapter и выбор одного API protocol не нужны.
+
+Оставшиеся Node-only зависимости в `file-store.ts` (`node:timers/promises`) и `files-api.ts` (`node:crypto`) пока не адаптированы. Нельзя решать эту несовместимость удалением Files API/image features: сначала заменить только неподдерживаемые primitives на совместимые реализации и покрыть прежнее поведение тестами.
 
 #### `@deepseek-ai/dsh-session-persistence-jsonl`
 
@@ -215,14 +217,14 @@ Cordis core можно оставить основой plugin lifecycle. Но ru
 2. **Bundle spike:** собрать минимальный Cordis + Session + Tools + LLM core в deployable `tgcloud/lib/*.js`, оставив SDK imports external.
 3. **Agent initiator scope:** выполнено — Node-specific `AsyncLocalStorage` вынесен в отдельный provider, а V8-compatible single-Agent provider добавлен с regression tests. Требуется runtime smoke test на Telegram.
 4. **Agent Loop ID seam:** выполнено — Agent Loop использует browser-safe `dsh-util-crypto.randomUUID()`. Требуется проверить `crypto.getRandomValues` на реальном Serverless invocation.
-5. **LLM adapter:** реализовать адаптер через `sdk/fetch`; отдельно решить provider endpoint и модель credentials.
+5. **LLM transport:** выполнено на уровне source integration — существующие adapters получают необязательный `serverlessFetch` service; добавлены тесты для pi-ai provider routing, DeepSeek Messages requests и model listing. Осталось проверить runtime globals и SDK stream на Telegram Serverless; адаптировать оставшиеся Node-only helpers, не удаляя LLM/File API features.
 6. **SQLite spike:** подтвердить atomicity/concurrency/durability, затем реализовать Telegram persistence provider.
 7. **Plugin composition:** статически поставляемые Cordis plugins + декларативные HTTP plugins.
 8. **End-to-end:** Mini App endpoint → tenant context → resume/create Agent → LLM stream → tool HTTP → session flush → ответ.
 
 ## 8. Не решено и не должно угадываться
 
-- Официальный DeepSeek API или другой OpenAI-compatible endpoint.
+- Credential policy для существующих LLM providers: общий ключ платформы, BYOK или оба варианта.
 - Общий API key платформы или BYOK (пользовательские ключи).
 - Максимальное время invocation и стратегия continuation для длинных задач.
 - Транзакционная и конкурентная семантика Telegram SQLite SDK.
