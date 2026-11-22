@@ -353,16 +353,17 @@ interface FactorySlot {
 }
 
 /**
- * Agent service (`ctx.agents`): tracks live agents and carries the initiating
- * Agent through one process-local asynchronous driver chain. Agent *creation*
- * is provided by whichever plugin implements the {@link AgentFactory}
- * (`@deepseek-ai/dsh-agent-loop`), registered via {@link setFactory}.
+ * Agent service (`ctx.agents`): tracks live agents and delegates process-local
+ * attribution to an {@link AgentInitiatorScopeFactory}. Node.js compositions
+ * can select independent async scopes; V8 compositions can select the
+ * single-active-Agent strategy. Agent *creation* is provided by whichever
+ * plugin implements the {@link AgentFactory} (`@deepseek-ai/dsh-agent-loop`),
+ * registered via {@link setFactory}.
  *
  * Initiator methods provide same-process causal attribution only. Ambient
  * presence is neither liveness proof nor authorization; subjects and owners
  * remain explicit, as does identity at worker, process, persistence, and wire
- * boundaries. Returned Promise boundaries drain during teardown, except a
- * nested lineage that starts an owning-fiber unload is excluded from its own drain.
+ * boundaries. Each provider owns its returned-Promise drain and teardown semantics.
  */
 export class AgentRegistry extends Service {
   static inject = ['sessionProjections']
