@@ -240,11 +240,12 @@ export function parseModelListing(body: unknown): ModelListing {
  */
 export async function requestModelListing(
   url: string, headers: Readonly<Record<string, string>>, signal: AbortSignal,
+  fetchImpl: typeof globalThis.fetch = globalThis.fetch,
 ): Promise<ModelListing> {
   let response: Response
   let text: string
   try {
-    response = await fetch(url, {
+    response = await fetchImpl(url, {
       method: 'GET', redirect: 'error', signal,
       headers: { ...attributionHeaders(), accept: 'application/json', ...headers },
     })
