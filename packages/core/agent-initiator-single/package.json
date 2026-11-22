@@ -38,7 +38,6 @@
     "@deepseek-ai/dsh-session-projection": "workspace:*",
     "@deepseek-ai/dsh-brand": "workspace:*",
     "@deepseek-ai/cordis": "workspace:~",
-    "vitest": "catalog:",
     "@deepseek-ai/dsh-session": "workspace:*"
   }
 }
