@@ -9,7 +9,7 @@
 
 Полностью запустить стандартную Node.js-сборку DSH в Telegram Serverless нельзя. Но базовые части агентной архитектуры выглядят переносимыми: Cordis core, Session event model, Tool Registry и provider-neutral LLM API не требуют локального сервера по своей концепции.
 
-Для работающего Serverless runtime нужны четыре адаптации:
+В проверенной части core runtime прямые Node imports удалены из `dsh-agent`, `dsh-agent-loop`, `dsh-session` и provider-neutral `dsh-llm`. Для работающего Serverless runtime остаются четыре основные адаптации:
 
 1. выбрать V8-compatible initiator scope с одним активным Agent на invocation — базовая реализация добавлена в форк;
 2. отделить Agent Loop от Node.js UUID API;
@@ -75,6 +75,10 @@ Regression tests добавлены для single-Agent scope; полный Node
 Файл: `packages/core/agent-loop/src/index.ts`
 
 Первоначальный `node:crypto.randomUUID` заменён на `@deepseek-ai/dsh-util-crypto.randomUUID()`. Helper использует `globalThis.crypto.getRandomValues`, поэтому Node built-in из Agent Loop удалён. Официальная документация Telegram Serverless не перечисляет Web Crypto в явном перечне SDK API; доступность `crypto.getRandomValues` должна быть подтверждена runtime smoke test на реальном invocation.
+
+#### `@deepseek-ai/dsh-session`
+
+В `packages/core/session/src/validation.ts` использовался `node:path.isAbsolute()` для проверки `cwd` в Session header. Node built-in удалён; добавлена локальная проверка абсолютного пути с POSIX-семантикой по умолчанию и Windows-семантикой, если `globalThis.process.platform === 'win32'`. Это убирает Node dependency из Session core, сохраняя поведение Node на Windows.
 
 #### `@deepseek-ai/dsh-llm-deepseek`
 
