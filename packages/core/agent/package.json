@@ -62,8 +62,7 @@
     "@deepseek-ai/dsh-typert-registry": "workspace:*",
     "@deepseek-ai/dsh-util-values": "workspace:*",
     "@deepseek-ai/dsh-workspace": "workspace:*",
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-agent-initiator-node": "workspace:*"
+    "@deepseek-ai/cordis": "workspace:~"
   },
   "dependencies": {
     "@deepseek-ai/dsh-brand": "workspace:*",
