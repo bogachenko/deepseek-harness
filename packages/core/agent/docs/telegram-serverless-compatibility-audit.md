@@ -1,5 +1,7 @@
 # Аудит совместимости DeepSeek Harness с Telegram Serverless
 
+> Границы задачи проекта зафиксированы в [dsh-telegram-platform/docs/project-scope.md](https://github.com/bogachenko/dsh-telegram-platform/blob/main/docs/project-scope.md). Этот аудит — техническая часть этой задачи, а не расширение её scope.
+
 - **Дата:** 2026-11-22
 - **Ветка:** `telegram-serverless-adaptation`
 - **База аудита:** `master` форка, синхронизированный с upstream на момент начала работ
