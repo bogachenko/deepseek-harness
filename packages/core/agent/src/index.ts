@@ -42,6 +42,96 @@ export interface AgentInitiatorScopeFactory {
   create(): AgentInitiatorScope
 }
 
+/** V8-compatible default scope for one active Agent per invocation. */
+class SingleAgentInitiatorScope implements AgentInitiatorScope {
+  private state: 'active' | 'closing' | 'disposed' = 'active'
+  private activeAgent: Agent | undefined
+  private activeAgentRuns = 0
+  private activeAgentlessRuns = 0
+  private activeRuns = 0
+  private drain: PromiseWithResolvers<void> | undefined
+  private disposal: Promise<void> | undefined
+
+  current(): Agent | undefined {
+    this.assertReadable()
+    return this.activeAgent
+  }
+
+  run<T>(agent: Agent | undefined, operation: () => T): T {
+    if (this.state !== 'active') throw new Error(DISPOSED_INITIATOR_MESSAGE)
+    if (agent === undefined) {
+      if (this.activeAgent !== undefined) {
+        throw new Error('cannot start an agentless boundary while an Agent is active in this invocation')
+      }
+      this.activeAgentlessRuns += 1
+    } else {
+      if (this.activeAgentlessRuns !== 0) {
+        throw new Error('cannot start an Agent boundary while an agentless operation is active in this invocation')
+      }
+      if (this.activeAgent !== undefined && this.activeAgent !== agent) {
+        throw new Error('only one active Agent is supported per invocation')
+      }
+      this.activeAgent = agent
+      this.activeAgentRuns += 1
+    }
+    this.activeRuns += 1
+
+    let result: T
+    try {
+      result = operation()
+    } catch (error: unknown) {
+      this.release(agent)
+      throw error
+    }
+    try {
+      void Promise.prototype.then.call(
+        result as Promise<unknown>,
+        () => { this.release(agent) },
+        () => { this.release(agent) },
+      )
+    } catch {
+      this.release(agent)
+    }
+    return result
+  }
+
+  close(): void {
+    if (this.state === 'active') this.state = 'closing'
+  }
+
+  dispose(): Promise<void> {
+    return (this.disposal ??= (async () => {
+      this.close()
+      if (this.activeRuns !== 0) {
+        this.drain ??= Promise.withResolvers<void>()
+        await this.drain.promise
+      }
+      this.state = 'disposed'
+      this.activeAgent = undefined
+    })())
+  }
+
+  private assertReadable(): void {
+    if (this.state === 'disposed') throw new Error(DISPOSED_INITIATOR_MESSAGE)
+  }
+
+  private release(agent: Agent | undefined): void {
+    if (agent === undefined) this.activeAgentlessRuns -= 1
+    else {
+      this.activeAgentRuns -= 1
+      if (this.activeAgentRuns === 0) this.activeAgent = undefined
+    }
+    this.activeRuns -= 1
+    if (this.activeRuns !== 0) return
+    this.drain?.resolve()
+    this.drain = undefined
+  }
+}
+
+export const singleAgentInitiatorScopeFactory: AgentInitiatorScopeFactory = {
+  create: () => new SingleAgentInitiatorScope(),
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     agents: AgentRegistry
@@ -235,6 +325,7 @@ export interface AgentFactory {
 /** Thrown when create/resume is called before an agent factory is registered. */
 const NO_FACTORY_MESSAGE = 'no agent factory registered (load an agent-loop plugin)'
 const NO_INITIATOR_MESSAGE = 'no initiating agent is active'
+const DISPOSED_INITIATOR_MESSAGE = 'agent initiator scope is disposed'
 
 /** All mutable lifecycle state for one exact registry entry. */
 interface AgentEntry {
@@ -265,16 +356,15 @@ interface FactorySlot {
  * nested lineage that starts an owning-fiber unload is excluded from its own drain.
  */
 export class AgentRegistry extends Service {
-  static inject = ['sessionProjections', 'agentInitiatorScopeFactory']
+  static inject = ['sessionProjections']
 
   private turnBoundaryProjectionHandle!: ProjectionHandle<TurnBoundaryProjection>
   private store = new Map<SessionId, AgentEntry>()
   private factory: FactorySlot | undefined
-  private readonly initiators: AgentInitiatorScope
+  private initiators: AgentInitiatorScope | undefined
 
   constructor(ctx: Context) {
     super(ctx, 'agents')
-    this.initiators = ctx.agentInitiatorScopeFactory.create()
     ctx.inject(['typert'], (typeCtx) => {
       typeCtx.typert.lookups.register('agent', {
         parameter: 'agent',
@@ -293,11 +383,11 @@ export class AgentRegistry extends Service {
     })
     ctx.on('internal/status', (fiber) => {
       if (fiber.state === FiberState.UNLOADING && this.hasLifecycleAncestor(fiber)) {
-        this.initiators.close()
+        this.initiatorScope().close()
       }
     })
     ctx.effect(function* (this: AgentRegistry) {
-      yield () => this.initiators.dispose()
+      yield () => this.initiatorScope().dispose()
       yield () => { this.initiators.close() }
     }.bind(this), 'agents.initiatorLifecycle()')
     // Archive admission: the Workspace registry asks what still runs for a
@@ -330,7 +420,7 @@ export class AgentRegistry extends Service {
    */
   currentInitiator(): Agent | undefined {
     this.assertInitiatorsReadable()
-    return this.initiators.current()
+    return this.initiatorScope().current()
   }
 
   /**
@@ -361,7 +451,7 @@ export class AgentRegistry extends Service {
    * @throws when the initiator scope is closing/disposed, or when `operation` throws.
    */
   withInitiator<T>(agent: Agent, operation: () => T): T {
-    return this.initiators.run(agent, operation)
+    return this.initiatorScope().run(agent, operation)
   }
 
   /**
@@ -604,6 +694,12 @@ export class AgentRegistry extends Service {
    */
   list(): Agent[] {
     return [...this.store.values()].map(entry => entry.agent)
+  }
+
+  /** Resolve the runtime strategy lazily after composition has mounted its provider. */
+  private initiatorScope(): AgentInitiatorScope {
+    return this.initiators ??= this.ctx.get('agentInitiatorScopeFactory')?.create()
+      ?? singleAgentInitiatorScopeFactory.create()
   }
 
   /** Whether one unloading fiber owns this service's lifecycle. */
